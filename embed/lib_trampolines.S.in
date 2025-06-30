@@ -3,7 +3,7 @@
 #if defined(__aarch64__)
 
 .macro get_ctx var, reg
-    mov x11, x0
+    mov x13, x0
     mov x12, x30
 
     adrp x0, :tlsdesc:\var
@@ -15,7 +15,7 @@
     add \reg, \reg, x0
 
     mov x30, x12
-    mov x0, x11
+    mov x0, x13
 .endm
 
 .p2align 4
@@ -32,6 +32,7 @@
 .p2align 4
 .global {{$.lib_prefix}}{{$sym}}
 {{$.lib_prefix}}{{$sym}}:
+    bti jc
     adrp x10, :got:{{$.lib}}_addr_{{$sym}}
     ldr	x10, [x10, :got_lo12:{{$.lib}}_addr_{{$sym}}]
     ldr	x10, [x10]
@@ -102,6 +103,7 @@
 .p2align 4
 .global {{$.lib_prefix}}{{$sym}}
 {{$.lib_prefix}}{{$sym}}:
+    endbr64
     movq {{$.lib}}_addr_{{$sym}}@GOTPCREL(%rip), %r10
     pushq (%r10)
     jmp .{{$.lib}}_trampoline

@@ -3,3 +3,4 @@ lfi-bind
 *.so
 *.out
 main
+gen/*
