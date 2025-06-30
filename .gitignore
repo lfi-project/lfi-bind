@@ -1,0 +1,5 @@
+lfi-bind
+*.lfi
+*.so
+*.out
+main

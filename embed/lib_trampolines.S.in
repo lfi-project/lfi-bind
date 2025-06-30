@@ -1,0 +1,125 @@
+.text
+
+#if defined(__aarch64__)
+
+.macro get_ctx var, reg
+    mov x11, x0
+    mov x12, x30
+
+    adrp x0, :tlsdesc:\var
+    ldr \reg, [x0, :tlsdesc_lo12:\var]
+    add x0, x0, :tlsdesc_lo12:\var
+    .tlsdesccall \var
+    blr \reg
+    mrs \reg, tpidr_el0
+    add \reg, \reg, x0
+
+    mov x30, x12
+    mov x0, x11
+.endm
+
+.p2align 4
+.{{.lib}}_trampoline:
+	adrp x12, :got:{{.lib}}_box
+	ldr	x12, [x12, :got_lo12:{{.lib}}_box]
+	ldr	x12, [x12]
+    get_ctx {{.lib}}_ctx, x11
+    stp x11, x12, [sp, #-16]!
+    stp x10, xzr, [sp, #-16]!
+    b lfi_trampoline_direct
+
+{{- range $sym := .syms}}
+.p2align 4
+.global {{$.lib_prefix}}{{$sym}}
+{{$.lib_prefix}}{{$sym}}:
+    adrp x10, :got:{{$.lib}}_addr_{{$sym}}
+    ldr	x10, [x10, :got_lo12:{{$.lib}}_addr_{{$sym}}]
+    ldr	x10, [x10]
+    b .{{$.lib}}_trampoline
+{{- end}}
+
+#elif defined(__x86_64__)
+
+.macro get_ctx var, reg
+#if defined(ENABLE_TLS_DESC)
+    pushq %rax
+    leaq \var@TLSDESC(%rip), %rax
+    callq *\var@TLSCALL(%rax)
+    addq %fs:0x0, %rax
+    movq %rax, \reg
+    popq %rax
+#else
+    // Save/restore registers used for arguments.
+    pushq %rdi
+    pushq %rsi
+    pushq %rdx
+    pushq %rcx
+    pushq %r8
+    pushq %r9
+    subq $136, %rsp
+    movdqu %xmm0, 0(%rsp)
+    movdqu %xmm1, 16(%rsp)
+    movdqu %xmm2, 32(%rsp)
+    movdqu %xmm3, 48(%rsp)
+    movdqu %xmm4, 64(%rsp)
+    movdqu %xmm5, 80(%rsp)
+    movdqu %xmm6, 96(%rsp)
+    movdqu %xmm7, 112(%rsp)
+
+    .byte 0x66
+    leaq \var@TLSGD(%rip), %rdi
+    .byte 0x66, 0x66
+    rex64 callq __tls_get_addr@PLT
+    movq %rax, \reg
+
+    movdqu 0(%rsp), %xmm0
+    movdqu 16(%rsp), %xmm1
+    movdqu 32(%rsp), %xmm2
+    movdqu 48(%rsp), %xmm3
+    movdqu 64(%rsp), %xmm4
+    movdqu 80(%rsp), %xmm5
+    movdqu 96(%rsp), %xmm6
+    movdqu 112(%rsp), %xmm7
+    addq $136, %rsp
+    popq %r9
+    popq %r8
+    popq %rcx
+    popq %rdx
+    popq %rsi
+    popq %rdi
+#endif
+.endm
+
+.p2align 4
+.{{.lib}}_trampoline:
+    movq {{.lib}}_box@GOTPCREL(%rip), %r11
+    pushq (%r11)
+    get_ctx {{.lib}}_ctx, %r11
+    pushq %r11
+    jmp lfi_trampoline_direct
+
+{{- range $sym := .syms}}
+.p2align 4
+.global {{$.lib_prefix}}{{$sym}}
+{{$.lib_prefix}}{{$sym}}:
+    movq {{$.lib}}_addr_{{$sym}}@GOTPCREL(%rip), %r10
+    pushq (%r10)
+    jmp .{{$.lib}}_trampoline
+{{- end}}
+
+#else
+
+#error "unsupported architecture"
+
+#endif
+
+.data
+
+{{- range $sym := .syms}}
+.global {{$.lib}}_addr_{{$sym}}
+.hidden {{$.lib}}_addr_{{$sym}}
+{{$.lib}}_addr_{{$sym}}:
+    .quad 0
+{{- end}}
+
+.section .note.GNU-stack,"",@progbits
