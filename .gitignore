@@ -5,3 +5,4 @@ lfi-bind
 main
 gen
 examples/lfi-runtime
+*.a

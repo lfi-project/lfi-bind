@@ -1,10 +1,7 @@
 include ../common.mk
 
-run: main
-	@LD_LIBRARY_PATH=.:$(ROOT)/examples/lfi-runtime/install/lib ./main
-
 main: main.c libadd.so
-	$(CC) -O2 $^ $(LIBLFI) -o $@ -g
+	$(CC) -O2 $^ $(LIBLFI) -o $@
 
 libadd.so: libadd/libadd.lfi
 	mkdir -p gen
@@ -17,5 +14,8 @@ libadd/libadd.lfi: libadd/add.c
 clean:
 	rm -rf gen
 	rm -f libadd/libadd.lfi libadd.so main
+
+run: main
+	@LD_LIBRARY_PATH=.:$(ROOT)/examples/lfi-runtime/install/lib ./main
 
 .PHONY: run clean

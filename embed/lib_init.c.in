@@ -8,7 +8,7 @@ _Thread_local struct LFIContext *{{.lib}}_ctx;
 
 struct LFIBox *{{.lib}}_box;
 
-const char *library_file = "{{.lib_path}}";
+static const char *library_file = "{{.lib_path}}";
 
 static void
 resolve(struct LFILinuxProc *proc, lfiptr *loc, const char *name)
