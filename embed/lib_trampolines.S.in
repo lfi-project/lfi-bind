@@ -4,7 +4,7 @@
 
 .macro get_ctx var, reg
     mov x13, x0
-    mov x12, x30
+    mov x14, x30
 
     adrp x0, :tlsdesc:\var
     ldr \reg, [x0, :tlsdesc_lo12:\var]
@@ -14,7 +14,7 @@
     mrs \reg, tpidr_el0
     add \reg, \reg, x0
 
-    mov x30, x12
+    mov x30, x14
     mov x0, x13
 .endm
 

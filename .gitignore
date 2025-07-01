@@ -3,4 +3,5 @@ lfi-bind
 *.so
 *.out
 main
-gen/*
+gen
+examples/lfi-runtime
