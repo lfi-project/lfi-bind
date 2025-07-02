@@ -155,6 +155,6 @@ func main() {
 			*libPath = args[0]
 		}
 		GenInit(*genInit, syms, *lib, *libPath)
-		GenInitHeader(strings.TrimSuffix(*genInit, ".c")+".h", *lib)
+		GenInitHeader(*lib+".h", *lib)
 	}
 }
