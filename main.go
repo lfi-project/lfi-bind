@@ -95,13 +95,26 @@ func GenInit(file string, syms []string, lib, libPath string) {
 	w.Close()
 }
 
+func GenInitHeader(file string, lib string) {
+	w, err := os.Create(file)
+	if err != nil {
+		fatal(err)
+	}
+
+	ExecTemplate(w, file, ReadEmbed("embed/lib_init.h.in"), map[string]any{
+		"lib":      lib,
+	}, nil)
+
+	w.Close()
+}
+
 func main() {
 	lib := flag.String("lib", "lib", "library name for function prefixes")
 	libPath := flag.String("lib-path", "", "path to library executable at runtime")
 	genTrampolines := flag.String("gen-trampolines", "", "output file for trampolines")
 	genInit := flag.String("gen-init", "", "output file for initialization functions")
 	symbols := flag.String("symbols", "", "comma-separated list of exported symbols")
-  symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
+	symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
 	symPrefix := flag.String("sym-prefix", "", "prefix used to match exported symbols")
 	libPrefix := flag.String("lib-prefix", "", "prefix to put on library symbols")
 
@@ -142,5 +155,6 @@ func main() {
 			*libPath = args[0]
 		}
 		GenInit(*genInit, syms, *lib, *libPath)
+		GenInitHeader(strings.TrimSuffix(*genInit, ".c")+".h", *lib)
 	}
 }

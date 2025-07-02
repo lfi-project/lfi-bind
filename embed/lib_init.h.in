@@ -1,0 +1,15 @@
+#pragma once
+
+#include <stddef.h>
+
+void *
+{{.lib}}_malloc(size_t size);
+
+void *
+{{.lib}}_realloc(size_t size);
+
+void *
+{{.lib}}_calloc(size_t count, size_t size);
+
+void
+{{.lib}}_free(void *p);

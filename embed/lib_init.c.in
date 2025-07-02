@@ -100,3 +100,27 @@ __attribute__((constructor)) void
     {{.lib}}_box = lfi_proc_box(proc);
     {{.lib}}_ctx = *lfi_thread_ctxp(t);
 }
+
+void *
+{{.lib}}_malloc(size_t size)
+{
+    return lfi_lib_malloc(&{{.lib}}_ctx, size);
+}
+
+void *
+{{.lib}}_realloc(size_t size)
+{
+    return lfi_lib_realloc(&{{.lib}}_ctx, size);
+}
+
+void *
+{{.lib}}_calloc(size_t count, size_t size)
+{
+    return lfi_lib_calloc(&{{.lib}}_ctx, count, size);
+}
+
+void
+{{.lib}}_free(void *p)
+{
+    return lfi_lib_free(&{{.lib}}_ctx, p);
+}
