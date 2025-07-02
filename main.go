@@ -101,6 +101,7 @@ func main() {
 	genTrampolines := flag.String("gen-trampolines", "", "output file for trampolines")
 	genInit := flag.String("gen-init", "", "output file for initialization functions")
 	symbols := flag.String("symbols", "", "comma-separated list of exported symbols")
+  symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
 	symPrefix := flag.String("sym-prefix", "", "prefix used to match exported symbols")
 	libPrefix := flag.String("lib-prefix", "", "prefix to put on library symbols")
 
@@ -112,13 +113,25 @@ func main() {
 		fatal("no input")
 	}
 
-	var syms []string
+  var syms []string
 
-	if *symbols == "" {
-		syms = FindDynamicSymbols(args[0], *symPrefix)
-	} else {
+  if *symbolsFile != "" {
+    data, err := os.ReadFile(*symbolsFile)
+    if err != nil {
+      log.Fatal(err)
+    }
+    lines := strings.Split(string(data), "\n")
+    for _, l := range lines {
+      l = strings.TrimSpace(l)
+      if l != "" {
+        syms = append(syms, l)
+      }
+    }
+	} else if *symbols != "" {
 		syms = strings.Split(*symbols, ",")
-	}
+	} else {
+    syms = FindDynamicSymbols(args[0], *symPrefix)
+  }
 
 	if *genTrampolines != "" {
 		GenTrampolines(*genTrampolines, syms, *lib, *libPrefix)
