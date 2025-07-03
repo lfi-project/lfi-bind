@@ -152,7 +152,7 @@ func main() {
 	}
 
 	if *genInit != "" {
-		if *libPath != "" {
+		if *libPath == "" {
 			*libPath = args[0]
 		}
 		GenInit(*genInit, syms, *lib, *libPath)
