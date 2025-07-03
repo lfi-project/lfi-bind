@@ -26,3 +26,23 @@ The process for creating a sandboxed library is the following:
    allowing you to use the sandboxed library.
 
 See the `examples` directory for real examples that you can try out.
+
+```
+Usage of ./lfi-bind:
+  -gen-init string
+    	output file for initialization functions
+  -gen-trampolines string
+    	output file for trampolines
+  -lib string
+    	library name for function prefixes (default "lib")
+  -lib-path string
+    	path to library executable at runtime
+  -lib-prefix string
+    	prefix to put on library symbols
+  -sym-prefix string
+    	prefix used to match exported symbols
+  -symbols string
+    	comma-separated list of exported symbols
+  -symbols-file string
+    	list of symbols in a file, one line per symbol
+```
