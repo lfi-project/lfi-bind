@@ -24,7 +24,7 @@ libbar/libbar.lfi: libbar/bar.c
 	$(LFICC) -static-pie $< -o $@ -O2 -lboxrt -Wl,--export-dynamic
 
 run: main
-	@LD_LIBRARY_PATH=$(ROOT)/examples/lfi-runtime/install/lib ./main
+	./main
 
 clean:
 	rm -rf gen

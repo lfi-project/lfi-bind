@@ -16,7 +16,7 @@ static inline long long unsigned time_ns() {
 int main() {
     printf("add(10, 32) = %d\n", add(10, 32));
 
-    size_t iters = 100000000;
+    size_t iters = 10000000;
     long long unsigned start = time_ns();
     for (size_t i = 0; i < iters; i++) {
         add(10, 32);

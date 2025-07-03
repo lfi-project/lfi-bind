@@ -20,9 +20,9 @@
 
 .p2align 4
 .{{.lib}}_trampoline:
-	adrp x12, :got:{{.lib}}_box
-	ldr	x12, [x12, :got_lo12:{{.lib}}_box]
-	ldr	x12, [x12]
+    adrp x12, :got:{{.lib}}_box
+    ldr x12, [x12, :got_lo12:{{.lib}}_box]
+    ldr x12, [x12]
     get_ctx {{.lib}}_ctx, x11
     stp x11, x12, [sp, #-16]!
     stp x10, xzr, [sp, #-16]!

@@ -2,7 +2,30 @@
 
 #include <assert.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <sys/mman.h>
+
+#define LOG_TAG "lfi-{{.lib}}"
+
+#ifdef __ANDROID__
+
+#include <android/log.h>
+
+#define LOG(...) \
+    ((void) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
+
+#else
+
+#define LOG(fmt, ...) \
+    fprintf(stderr, "[" LOG_TAG "] " fmt "\n", ##__VA_ARGS__)
+
+#endif
+
+#define ERROR(...)        \
+    do {                  \
+        LOG(__VA_ARGS__); \
+        abort();          \
+    } while (0)
 
 _Thread_local struct LFIContext *{{.lib}}_ctx;
 
@@ -14,6 +37,8 @@ static void
 resolve(struct LFILinuxProc *proc, lfiptr *loc, const char *name)
 {
     lfiptr addr = lfi_proc_sym(proc, name);
+    if (addr == 0)
+        LOG("error: symbol not found: %s", name);
     *loc = addr;
 }
 
@@ -27,7 +52,6 @@ readfile(const char *path)
 {
     FILE *f = fopen(path, "r");
     if (!f) {
-        fprintf(stderr, "Cannot open %s\n", path);
         return (struct Buf) { 0 };
     }
     fseek(f, 0, SEEK_END);
@@ -53,24 +77,29 @@ __attribute__((constructor)) void
         .stacksize = 2UL * 1024 * 1024,
         .verbose = false,
     });
-    assert(ok);
+    if (!ok)
+        ERROR("error: failed to initialize liblfi");
 
     // Create proc from file.
     struct Buf prog = readfile(library_file);
-    assert(prog.data);
+    if (!prog.data)
+        ERROR("error: failed to open %s", library_file);
 
     struct LFILinuxProc *proc = lfi_proc_new(lfi_linux_lib_engine());
-    assert(proc);
+    if (!proc)
+        ERROR("error: failed to create LFI proc");
 
     ok = lfi_proc_load(proc, prog.data, prog.size);
-    assert(ok);
+    if (!ok)
+        ERROR("error: failed to load LFI library");
 
     // Initialize return.
     lfi_box_init_ret(lfi_proc_box(proc));
 
     // Initialize callbacks.
     ok = lfi_box_cbinit(lfi_proc_box(proc));
-    assert(ok);
+    if (!ok)
+        ERROR("error: failed to initialize LFI callbacks");
 
     // Create and run thread.
     const char *argv[] = {
@@ -84,9 +113,11 @@ __attribute__((constructor)) void
 
     struct LFILinuxThread *t = lfi_thread_new(proc,
         sizeof(argv)/sizeof(argv[0]), &argv[0], &envp[0]);
-    assert(t);
+    if (!t)
+        ERROR("failed to initialize LFI thread");
     int result = lfi_thread_run(t);
-    assert(result == 0);
+    if (result != 0)
+        ERROR("LFI thread returned non-zero value: %d", result);
 
     // Initialize clone.
     lfi_linux_init_clone(t);

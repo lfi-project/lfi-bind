@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"path/filepath"
 )
 
 //go:embed embed
@@ -155,6 +156,6 @@ func main() {
 			*libPath = args[0]
 		}
 		GenInit(*genInit, syms, *lib, *libPath)
-		GenInitHeader(*lib+".h", *lib)
+		GenInitHeader(filepath.Join(filepath.Dir(*genInit), *lib+".h"), *lib)
 	}
 }
