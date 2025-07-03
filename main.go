@@ -141,9 +141,12 @@ func main() {
 				syms = append(syms, l)
 			}
 		}
-	} else if *symbols != "" {
-		syms = strings.Split(*symbols, ",")
-	} else {
+	}
+	if *symbols != "" {
+		syms = append(syms, strings.Split(*symbols, ",")...)
+	}
+
+	if *symbols == "" && *symbolsFile == "" {
 		syms = FindDynamicSymbols(args[0], *symPrefix)
 	}
 
