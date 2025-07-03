@@ -9,8 +9,8 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
 )
 
 //go:embed embed
@@ -103,7 +103,7 @@ func GenInitHeader(file string, lib string) {
 	}
 
 	ExecTemplate(w, file, ReadEmbed("embed/lib_init.h.in"), map[string]any{
-		"lib":      lib,
+		"lib": lib,
 	}, nil)
 
 	w.Close()
@@ -127,25 +127,25 @@ func main() {
 		fatal("no input")
 	}
 
-  var syms []string
+	var syms []string
 
-  if *symbolsFile != "" {
-    data, err := os.ReadFile(*symbolsFile)
-    if err != nil {
-      log.Fatal(err)
-    }
-    lines := strings.Split(string(data), "\n")
-    for _, l := range lines {
-      l = strings.TrimSpace(l)
-      if l != "" {
-        syms = append(syms, l)
-      }
-    }
+	if *symbolsFile != "" {
+		data, err := os.ReadFile(*symbolsFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		lines := strings.Split(string(data), "\n")
+		for _, l := range lines {
+			l = strings.TrimSpace(l)
+			if l != "" {
+				syms = append(syms, l)
+			}
+		}
 	} else if *symbols != "" {
 		syms = strings.Split(*symbols, ",")
 	} else {
-    syms = FindDynamicSymbols(args[0], *symPrefix)
-  }
+		syms = FindDynamicSymbols(args[0], *symPrefix)
+	}
 
 	if *genTrampolines != "" {
 		GenTrampolines(*genTrampolines, syms, *lib, *libPrefix)
