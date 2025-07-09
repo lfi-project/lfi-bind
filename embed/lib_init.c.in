@@ -27,6 +27,8 @@
         abort();          \
     } while (0)
 
+#define LINUX_RTLD_NOW 2
+
 _Thread_local struct LFIContext *{{.lib}}_ctx;
 
 struct LFIBox *{{.lib}}_box;
@@ -65,8 +67,8 @@ readfile(const char *path)
     };
 }
 
-__attribute__((constructor)) void
-{{.lib}}_init(void)
+static void
+{{.lib}}_init_internal(bool dynamic)
 {
     // Create engine if it does not exist.
     bool ok = lfi_linux_lib_init((struct LFIOptions) {
@@ -122,14 +124,42 @@ __attribute__((constructor)) void
     // Initialize clone.
     lfi_linux_init_clone(t);
 
-    // Initialize all exported symbols.
+    if (dynamic) {
+        // Inject dlopen call.
+        lfiptr handle = LFI_INVOKE(lfi_proc_box(proc), lfi_thread_ctxp(t),
+                lfi_proc_sym(proc, "dlopen"), lfiptr, (const char *, int),
+                library_file, LINUX_RTLD_NOW);
+        if (!handle)
+            ERROR("error: dlopen could not load %s", library_file);
+        if (!lfi_box_ptrvalid(lfi_proc_box(proc), handle))
+            ERROR("error: dlopen returned invalid pointer");
+
+        // Inject dlsym calls.
+        lfiptr dlsym = lfi_proc_sym(proc, "dlsym");
 {{- range $sym := .syms}}
-    extern lfiptr {{$.lib}}_addr_{{$sym}};
-    resolve(proc, &{{$.lib}}_addr_{{$sym}}, "{{$sym}}");
+        extern lfiptr {{$.lib}}_addr_{{$sym}};
+        lfiptr sym = LFI_INVOKE(lfi_proc_box(proc), lfi_thread_ctxp(t),
+                dlsym, lfiptr, (lfiptr, const char *), handle, "{{$sym}}");
+        if (sym == 0)
+            LOG("error: symbol not found: {{$sym}}");
+        {{$.lib}}_addr_{{$sym}} = sym;
 {{- end}}
+    } else {
+        // Initialize all exported symbols.
+{{- range $sym := .syms}}
+        extern lfiptr {{$.lib}}_addr_{{$sym}};
+        resolve(proc, &{{$.lib}}_addr_{{$sym}}, "{{$sym}}");
+{{- end}}
+    }
 
     {{.lib}}_box = lfi_proc_box(proc);
     {{.lib}}_ctx = *lfi_thread_ctxp(t);
+}
+
+__attribute__((constructor)) void
+{{.lib}}_init(void)
+{
+    {{.lib}}_init_internal(false);
 }
 
 void *

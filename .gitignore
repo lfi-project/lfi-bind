@@ -6,3 +6,13 @@ main
 gen
 examples/lfi-runtime
 *.a
+
+subprojects/lfi-runtime
+subprojects/lfi-verifier
+subprojects/lfiv.wrap
+subprojects/libmmap*
+subprojects/libboxmap*
+subprojects/cwalk*
+subprojects/argtable3*
+subprojects/fadec*
+subprojects/disarm*
