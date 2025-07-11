@@ -66,31 +66,43 @@ func ExecTemplate(w io.Writer, name string, data string, vars map[string]any, fu
 	}
 }
 
-func GenTrampolines(file string, syms []string, lib, libPrefix string) {
+type Options struct {
+	Syms      []string
+	Lib       string
+	LibPrefix string
+	LibPath   string
+	Dynamic   bool
+	Embed     bool
+	NoVerify  bool
+}
+
+func GenTrampolines(file string, opts Options) {
 	w, err := os.Create(file)
 	if err != nil {
 		fatal(err)
 	}
 
 	ExecTemplate(w, file, ReadEmbed("embed/lib_trampolines.S.in"), map[string]any{
-		"lib":        lib,
-		"lib_prefix": libPrefix,
-		"syms":       syms,
+		"lib":        opts.Lib,
+		"lib_prefix": opts.LibPrefix,
+		"syms":       opts.Syms,
 	}, nil)
 
 	w.Close()
 }
 
-func GenInit(file string, syms []string, lib, libPath string) {
+func GenInit(file string, opts Options) {
 	w, err := os.Create(file)
 	if err != nil {
 		fatal(err)
 	}
 
 	ExecTemplate(w, file, ReadEmbed("embed/lib_init.c.in"), map[string]any{
-		"lib":      lib,
-		"lib_path": libPath,
-		"syms":     syms,
+		"lib":       opts.Lib,
+		"lib_path":  opts.LibPath,
+		"syms":      opts.Syms,
+		"dynamic":   opts.Dynamic,
+		"no_verify": opts.NoVerify,
 	}, nil)
 
 	w.Close()
@@ -118,6 +130,8 @@ func main() {
 	symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
 	symPrefix := flag.String("sym-prefix", "", "prefix used to match exported symbols")
 	libPrefix := flag.String("lib-prefix", "", "prefix to put on library symbols")
+	embedF := flag.Bool("embed", false, "fully embed the input library into the data segment")
+	noVerify := flag.Bool("no-verify", false, "disable verification")
 
 	flag.Parse()
 
@@ -125,6 +139,13 @@ func main() {
 
 	if len(args) <= 0 {
 		fatal("no input")
+	}
+
+	input := args[0]
+
+	dynamic := false
+	if strings.HasSuffix(input, ".so") {
+		dynamic = true
 	}
 
 	var syms []string
@@ -147,18 +168,29 @@ func main() {
 	}
 
 	if *symbols == "" && *symbolsFile == "" {
-		syms = FindDynamicSymbols(args[0], *symPrefix)
+		syms = FindDynamicSymbols(input, *symPrefix)
+	}
+
+	if *libPath == "" {
+		*libPath = input
+	}
+
+	opts := Options{
+		Syms:      syms,
+		Lib:       *lib,
+		LibPrefix: *libPrefix,
+		LibPath:   *libPath,
+		Dynamic:   dynamic,
+		Embed:     *embedF,
+		NoVerify:  *noVerify,
 	}
 
 	if *genTrampolines != "" {
-		GenTrampolines(*genTrampolines, syms, *lib, *libPrefix)
+		GenTrampolines(*genTrampolines, opts)
 	}
 
 	if *genInit != "" {
-		if *libPath == "" {
-			*libPath = args[0]
-		}
-		GenInit(*genInit, syms, *lib, *libPath)
+		GenInit(*genInit, opts)
 		GenInitHeader(filepath.Join(filepath.Dir(*genInit), *lib+".h"), *lib)
 	}
 }

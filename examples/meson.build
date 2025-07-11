@@ -10,3 +10,4 @@ lfi_linux = subproject('lfi-runtime').get_variable('lfi_linux')
 
 subdir('add')
 subdir('multi')
+subdir('so')

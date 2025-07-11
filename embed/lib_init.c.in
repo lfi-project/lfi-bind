@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 
 #define LOG_TAG "lfi-{{.lib}}"
@@ -33,8 +34,34 @@ _Thread_local struct LFIContext *{{.lib}}_ctx;
 
 struct LFIBox *{{.lib}}_box;
 
+// Only used if the library is a .so file.
 static const char *library_file = "{{.lib_path}}";
 
+void *
+{{.lib}}_malloc(size_t size)
+{
+    return lfi_lib_malloc({{.lib}}_box, &{{.lib}}_ctx, size);
+}
+
+void *
+{{.lib}}_realloc(size_t size)
+{
+    return lfi_lib_realloc({{.lib}}_box, &{{.lib}}_ctx, size);
+}
+
+void *
+{{.lib}}_calloc(size_t count, size_t size)
+{
+    return lfi_lib_calloc({{.lib}}_box, &{{.lib}}_ctx, count, size);
+}
+
+void
+{{.lib}}_free(void *p)
+{
+    return lfi_lib_free({{.lib}}_box, &{{.lib}}_ctx, p);
+}
+
+{{if not .dynamic}}
 static void
 resolve(struct LFILinuxProc *proc, lfiptr *loc, const char *name)
 {
@@ -43,6 +70,7 @@ resolve(struct LFILinuxProc *proc, lfiptr *loc, const char *name)
         LOG("error: symbol not found: %s", name);
     *loc = addr;
 }
+{{end}}
 
 struct Buf {
     void *data;
@@ -67,31 +95,63 @@ readfile(const char *path)
     };
 }
 
+static char cwd[FILENAME_MAX];
+
+static const char *all[] = {
+    "/=/",
+    NULL,
+};
+
 static void
-{{.lib}}_init_internal(bool dynamic)
+lfi_init(void)
 {
+{{if .dynamic}}
+    char *p = getcwd(cwd, sizeof(cwd));
+    if (p != cwd)
+        ERROR("error: failed to read cwd");
+{{end}}
+
     // Create engine if it does not exist.
     bool ok = lfi_linux_lib_init((struct LFIOptions) {
         .boxsize = 4UL * 1024 * 1024 * 1024,
         .pagesize = getpagesize(),
         .verbose = false,
+{{if .no_verify}}
+        .no_verify = true,
+{{end}}
     }, (struct LFILinuxOptions) {
         .stacksize = 2UL * 1024 * 1024,
         .verbose = false,
+{{if .dynamic}}
+        // TODO: don't allow complete file system access...
+        .dir_maps = all,
+        .wd = cwd,
+{{end}}
     });
     if (!ok)
         ERROR("error: failed to initialize liblfi");
+}
+
+static void
+init(void)
+{
+    lfi_init();
 
     // Create proc from file.
-    struct Buf prog = readfile(library_file);
+{{if .dynamic}}
+    const char *exe_file = "boxrt.lfi";
+{{else}}
+    const char *exe_file = library_file;
+{{end}}
+    struct Buf prog = readfile(exe_file);
     if (!prog.data)
-        ERROR("error: failed to open %s", library_file);
+        ERROR("error: failed to open %s", exe_file);
 
     struct LFILinuxProc *proc = lfi_proc_new(lfi_linux_lib_engine());
     if (!proc)
         ERROR("error: failed to create LFI proc");
 
-    ok = lfi_proc_load(proc, prog.data, prog.size);
+    bool ok = lfi_proc_load(proc, prog.data, prog.size);
     if (!ok)
         ERROR("error: failed to load LFI library");
 
@@ -124,64 +184,60 @@ static void
     // Initialize clone.
     lfi_linux_init_clone(t);
 
-    if (dynamic) {
-        // Inject dlopen call.
-        lfiptr handle = LFI_INVOKE(lfi_proc_box(proc), lfi_thread_ctxp(t),
-                lfi_proc_sym(proc, "dlopen"), lfiptr, (const char *, int),
-                library_file, LINUX_RTLD_NOW);
-        if (!handle)
-            ERROR("error: dlopen could not load %s", library_file);
-        if (!lfi_box_ptrvalid(lfi_proc_box(proc), handle))
-            ERROR("error: dlopen returned invalid pointer");
+    struct LFIBox *box = lfi_proc_box(proc);
 
-        // Inject dlsym calls.
-        lfiptr dlsym = lfi_proc_sym(proc, "dlsym");
-{{- range $sym := .syms}}
-        extern lfiptr {{$.lib}}_addr_{{$sym}};
-        lfiptr sym = LFI_INVOKE(lfi_proc_box(proc), lfi_thread_ctxp(t),
-                dlsym, lfiptr, (lfiptr, const char *), handle, "{{$sym}}");
-        if (sym == 0)
-            LOG("error: symbol not found: {{$sym}}");
-        {{$.lib}}_addr_{{$sym}} = sym;
-{{- end}}
-    } else {
-        // Initialize all exported symbols.
-{{- range $sym := .syms}}
-        extern lfiptr {{$.lib}}_addr_{{$sym}};
-        resolve(proc, &{{$.lib}}_addr_{{$sym}}, "{{$sym}}");
-{{- end}}
-    }
-
-    {{.lib}}_box = lfi_proc_box(proc);
+    {{.lib}}_box = box;
     {{.lib}}_ctx = *lfi_thread_ctxp(t);
+
+{{if .dynamic}}
+
+    size_t len = strlen(library_file) + 1;
+    void *sbx_library_file = {{.lib}}_malloc(len);
+    if (!sbx_library_file)
+        ERROR("error: could not allocate library name in sandbox");
+    memcpy(sbx_library_file, library_file, len);
+
+    // Inject dlopen call.
+    lfiptr handle = LFI_INVOKE(box, lfi_thread_ctxp(t),
+            lfi_proc_sym(proc, "_lfi_dlopen"), lfiptr, (void *, int),
+            sbx_library_file, LINUX_RTLD_NOW);
+    if (!handle)
+        ERROR("error: dlopen could not load %s", library_file);
+    if (!lfi_box_ptrvalid(box, handle))
+        ERROR("error: dlopen returned invalid pointer");
+    {{.lib}}_free(sbx_library_file);
+
+    // Inject dlsym calls.
+    lfiptr dlsym = lfi_proc_sym(proc, "_lfi_dlsym");
+ {{- range $sym := .syms}}
+    size_t sym_len = sizeof("{{$sym}}");
+    void *sbx_sym = {{$.lib}}_malloc(sym_len);
+    if (!sbx_sym)
+        ERROR("error: could not allocate symbol name in sandbox");
+    memcpy(sbx_sym, "{{$sym}}", sym_len);
+
+    extern lfiptr {{$.lib}}_addr_{{$sym}};
+    lfiptr sym = LFI_INVOKE(box, lfi_thread_ctxp(t),
+            dlsym, lfiptr, (lfiptr, void *), handle, sbx_sym);
+    if (sym == 0)
+        LOG("error: symbol not found: {{$sym}}");
+    {{$.lib}}_addr_{{$sym}} = sym;
+    {{$.lib}}_free(sbx_sym);
+ {{- end}}
+
+{{else}}
+
+    // Initialize all exported symbols.
+ {{- range $sym := .syms}}
+    extern lfiptr {{$.lib}}_addr_{{$sym}};
+    resolve(proc, &{{$.lib}}_addr_{{$sym}}, "{{$sym}}");
+ {{- end}}
+
+{{end}}
 }
 
 __attribute__((constructor)) void
 {{.lib}}_init(void)
 {
-    {{.lib}}_init_internal(false);
-}
-
-void *
-{{.lib}}_malloc(size_t size)
-{
-    return lfi_lib_malloc(&{{.lib}}_ctx, size);
-}
-
-void *
-{{.lib}}_realloc(size_t size)
-{
-    return lfi_lib_realloc(&{{.lib}}_ctx, size);
-}
-
-void *
-{{.lib}}_calloc(size_t count, size_t size)
-{
-    return lfi_lib_calloc(&{{.lib}}_ctx, count, size);
-}
-
-void
-{{.lib}}_free(void *p)
-{
-    return lfi_lib_free(&{{.lib}}_ctx, p);
+    init();
 }

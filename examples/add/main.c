@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
@@ -14,7 +15,9 @@ static inline long long unsigned time_ns() {
 }
 
 int main() {
-    printf("add(10, 32) = %d\n", add(10, 32));
+    int r = add(10, 32);
+    assert(r == 42);
+    printf("add(10, 32) = %d\n", r);
 
     size_t iters = 10000000;
     long long unsigned start = time_ns();
