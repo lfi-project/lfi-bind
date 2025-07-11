@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"debug/elf"
 	"embed"
 	"flag"
@@ -67,6 +68,7 @@ func ExecTemplate(w io.Writer, name string, data string, vars map[string]any, fu
 }
 
 type Options struct {
+	Input     string
 	Syms      []string
 	Lib       string
 	LibPrefix string
@@ -97,12 +99,27 @@ func GenInit(file string, opts Options) {
 		fatal(err)
 	}
 
+	embedData := ""
+	if opts.Embed {
+		data, err := os.ReadFile(opts.Input)
+		if err != nil {
+			fatal(err)
+		}
+		buf := &bytes.Buffer{}
+		for _, b := range data {
+			fmt.Fprintf(buf, "%d,", b)
+		}
+		embedData = buf.String()
+	}
+
 	ExecTemplate(w, file, ReadEmbed("embed/lib_init.c.in"), map[string]any{
-		"lib":       opts.Lib,
-		"lib_path":  opts.LibPath,
-		"syms":      opts.Syms,
-		"dynamic":   opts.Dynamic,
-		"no_verify": opts.NoVerify,
+		"lib":        opts.Lib,
+		"lib_path":   opts.LibPath,
+		"syms":       opts.Syms,
+		"dynamic":    opts.Dynamic,
+		"no_verify":  opts.NoVerify,
+		"embed":      opts.Embed,
+		"embed_data": embedData,
 	}, nil)
 
 	w.Close()
@@ -146,6 +163,10 @@ func main() {
 	dynamic := false
 	if strings.HasSuffix(input, ".so") {
 		dynamic = true
+
+		if *embedF {
+			fatal("-embed is not supported with shared libraries")
+		}
 	}
 
 	var syms []string
@@ -176,6 +197,7 @@ func main() {
 	}
 
 	opts := Options{
+		Input:     input,
 		Syms:      syms,
 		Lib:       *lib,
 		LibPrefix: *libPrefix,

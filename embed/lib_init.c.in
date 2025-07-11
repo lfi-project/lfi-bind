@@ -34,8 +34,9 @@ _Thread_local struct LFIContext *{{.lib}}_ctx;
 
 struct LFIBox *{{.lib}}_box;
 
-// Only used if the library is a .so file.
+{{if not .embed}}
 static const char *library_file = "{{.lib_path}}";
+{{end}}
 
 void *
 {{.lib}}_malloc(size_t size)
@@ -77,6 +78,13 @@ struct Buf {
     size_t size;
 };
 
+{{if .embed}}
+
+static uint8_t embed_data[];
+static size_t embed_size;
+
+{{else}}
+
 static struct Buf
 readfile(const char *path)
 {
@@ -95,12 +103,16 @@ readfile(const char *path)
     };
 }
 
+{{end}}
+
+{{if .dynamic}}
 static char cwd[FILENAME_MAX];
 
 static const char *all[] = {
     "/=/",
     NULL,
 };
+{{end}}
 
 static void
 lfi_init(void)
@@ -137,15 +149,22 @@ init(void)
 {
     lfi_init();
 
-    // Create proc from file.
-{{if .dynamic}}
-    const char *exe_file = "boxrt.lfi";
+{{if .embed}}
+    struct Buf prog = (struct Buf) {
+        .data = embed_data,
+        .size = embed_size,
+    };
 {{else}}
+// Create proc from file.
+ {{if .dynamic}}
+    const char *exe_file = "boxrt.lfi";
+ {{else}}
     const char *exe_file = library_file;
-{{end}}
+ {{end}}
     struct Buf prog = readfile(exe_file);
     if (!prog.data)
         ERROR("error: failed to open %s", exe_file);
+{{end}}
 
     struct LFILinuxProc *proc = lfi_proc_new(lfi_linux_lib_engine());
     if (!proc)
@@ -241,3 +260,10 @@ __attribute__((constructor)) void
 {
     init();
 }
+
+{{if .embed}}
+static uint8_t embed_data[] = {
+    {{.embed_data}}
+};
+static size_t embed_size = sizeof(embed_data);
+{{end}}

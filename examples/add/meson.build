@@ -3,7 +3,7 @@ subdir('libadd')
 gen = custom_target('libadd-wrapper',
   output: ['lib_trampolines.S', 'lib_init.c'],
   input: libadd,
-  command: [lfibind, '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'addbox', '-symbols', 'add', '@INPUT@'])
+  command: [lfibind, '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'addbox', '-symbols', 'add', '@INPUT@'])
 
 add = executable(
   'add',
