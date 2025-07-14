@@ -3,7 +3,7 @@ subdir('libadd')
 add_so_gen = custom_target('libadd-so-wrapper',
   output: ['lib_trampolines.S', 'lib_init.c'],
   input: libadd_so,
-  command: [lfibind, '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'addbox', '-symbols', 'add', '@INPUT@'])
+  command: [lfibind, '-no-verify', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'addbox', '-symbols', 'add', '@INPUT@'])
 
 add_so = executable(
   'add-so',

@@ -103,6 +103,42 @@ readfile(const char *path)
     };
 }
 
+static struct Buf
+readlibfile(const char *path)
+{
+    // Try reading the file directly.
+    struct Buf b = readfile(path);
+    if (b.data)
+        return b;
+
+    // Try searching for it on the LFI_LIBRARY_PATH.
+    const char* env_path = getenv("LFI_LIBRARY_PATH");
+    if (env_path == NULL) {
+        return (struct Buf) { 0 };
+    }
+
+    char *lfi_path = strdup(env_path);
+    if (lfi_path == NULL) {
+        return (struct Buf) { 0 };
+    }
+
+    char *token = strtok(lfi_path, ":");
+    while (token != NULL) {
+        char full_path[FILENAME_MAX];
+        snprintf(full_path, sizeof(full_path), "%s/%s", token, path);
+
+        b = readfile(full_path);
+        if (b.data) {
+            break;
+        }
+
+        token = strtok(NULL, ":");
+    }
+
+    free(lfi_path);
+    return b;
+}
+
 {{end}}
 
 {{if .dynamic}}
@@ -135,7 +171,7 @@ lfi_init(void)
         .stacksize = 2UL * 1024 * 1024,
         .verbose = false,
 {{if .dynamic}}
-        // TODO: don't allow complete file system access...
+        // TODO: don't allow complete file system access if dynamic...
         .dir_maps = all,
         .wd = cwd,
 {{end}}
@@ -161,7 +197,7 @@ init(void)
  {{else}}
     const char *exe_file = library_file;
  {{end}}
-    struct Buf prog = readfile(exe_file);
+    struct Buf prog = readlibfile(exe_file);
     if (!prog.data)
         ERROR("error: failed to open %s", exe_file);
 {{end}}
