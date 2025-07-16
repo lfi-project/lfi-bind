@@ -10,6 +10,11 @@ functions from the library.
 go build
 ```
 
+# Examples
+
+See `examples` for some basic examples. See [./EXAMPLE.md](./EXAMPLE.md) for a
+step-by-step guide to recreating the `add` example manually.
+
 # Usage
 
 The process for creating a sandboxed library is the following:
