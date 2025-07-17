@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"debug/elf"
 	"embed"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"html/template"
@@ -20,6 +21,75 @@ var files embed.FS
 func fatal(v ...interface{}) {
 	fmt.Fprintln(os.Stderr, v...)
 	os.Exit(1)
+}
+
+type StackArgInfo struct {
+	Fn   uint64
+	Sret uint32
+	Args map[string][]StackArg
+}
+
+type StackArg struct {
+	Offset uint32
+	Size   uint32
+}
+
+func ObjGetStackArgs(file *elf.File) (StackArgInfo, bool) {
+	sec := file.Section(".stack_args")
+	if sec == nil {
+		return StackArgInfo{}, false
+	}
+
+	syms, err := file.Symbols()
+	if err != nil {
+		log.Fatal(err)
+	}
+	symtab := make(map[uint64]string)
+	for _, sym := range syms {
+		symtab[sym.Value] = sym.Name
+	}
+
+	info := StackArgInfo{
+		Args: make(map[string][]StackArg),
+	}
+
+	b := make([]byte, 8)
+	idx := uint64(0)
+	for idx < sec.Size {
+		sec.ReadAt(b, int64(idx))
+		idx += 8
+		info.Fn = binary.LittleEndian.Uint64(b)
+
+		sec.ReadAt(b, int64(idx))
+		idx += 4
+		info.Sret = binary.LittleEndian.Uint32(b)
+
+		sec.ReadAt(b, int64(idx))
+		idx += 4
+		entries := binary.LittleEndian.Uint32(b)
+
+		var args []StackArg
+		for i := uint32(0); i < entries; i++ {
+			// stack offset
+			sec.ReadAt(b, int64(idx))
+			idx += 4
+			offset := binary.LittleEndian.Uint32(b)
+			// size
+			sec.ReadAt(b, int64(idx))
+			idx += 4
+			size := binary.LittleEndian.Uint32(b)
+
+			args = append(args, StackArg{
+				Offset: offset,
+				Size:   size,
+			})
+		}
+
+		sym := symtab[info.Fn]
+		info.Args[sym] = args
+	}
+
+	return info, true
 }
 
 func FindDynamicSymbols(input string, symPrefix string) []string {
@@ -76,6 +146,7 @@ type Options struct {
 	Dynamic   bool
 	Embed     bool
 	NoVerify  bool
+	StackArgs StackArgInfo
 }
 
 func GenTrampolines(file string, opts Options) {
@@ -88,7 +159,32 @@ func GenTrampolines(file string, opts Options) {
 		"lib":        opts.Lib,
 		"lib_prefix": opts.LibPrefix,
 		"syms":       opts.Syms,
-	}, nil)
+	}, map[string]any{
+		"n_stack_args": func(s string) int {
+			if opts.StackArgs.Args == nil {
+				return 0
+			}
+
+			if opts.StackArgs.Sret != 0 {
+				fmt.Fprintf(os.Stderr, "warning: %s has struct return (unsupported)\n", s)
+			}
+
+			args, ok := opts.StackArgs.Args[s]
+			if !ok {
+				return 0
+			}
+			n := 0
+			for _, a := range args {
+				n += int(a.Size)
+			}
+
+			if n != 0 {
+				fmt.Fprintf(os.Stderr, "warning: %s has stack arguments (unsupported)\n", s, n)
+			}
+
+			return n
+		},
+	})
 
 	w.Close()
 }
@@ -196,6 +292,16 @@ func main() {
 		*libPath = input
 	}
 
+	f, err := elf.Open(input)
+	if err != nil {
+		fatal("failed to open ELF file: %w", err)
+	}
+	stackArgs, ok := ObjGetStackArgs(f)
+	if !ok {
+		fmt.Fprintln(os.Stderr, "warning: no .stack_args section found")
+	}
+	f.Close()
+
 	opts := Options{
 		Input:     input,
 		Syms:      syms,
@@ -205,6 +311,7 @@ func main() {
 		Dynamic:   dynamic,
 		Embed:     *embedF,
 		NoVerify:  *noVerify,
+		StackArgs: stackArgs,
 	}
 
 	if *genTrampolines != "" {

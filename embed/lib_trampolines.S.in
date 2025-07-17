@@ -25,7 +25,7 @@
     ldr x12, [x12]
     get_ctx {{.lib}}_ctx, x11
     stp x11, x12, [sp, #-16]!
-    stp x10, xzr, [sp, #-16]!
+    stp x10, x13, [sp, #-16]!
     b lfi_trampoline_direct
 
 {{- range $sym := .syms}}
@@ -36,6 +36,7 @@
     adrp x10, :got:{{$.lib}}_addr_{{$sym}}
     ldr	x10, [x10, :got_lo12:{{$.lib}}_addr_{{$sym}}]
     ldr	x10, [x10]
+    mov x13, #{{(n_stack_args $sym)}}
     b .{{$.lib}}_trampoline
 {{- end}}
 
@@ -104,6 +105,7 @@
 .global {{$.lib_prefix}}{{$sym}}
 {{$.lib_prefix}}{{$sym}}:
     endbr64
+    // pushq ${{(n_stack_args $sym)}} not included yet to avoid breaking existing combinations of lfi-bind/liblfi
     movq {{$.lib}}_addr_{{$sym}}@GOTPCREL(%rip), %r10
     pushq (%r10)
     jmp .{{$.lib}}_trampoline
