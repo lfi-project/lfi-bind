@@ -24,9 +24,8 @@ func fatal(v ...interface{}) {
 }
 
 type StackArgInfo struct {
-	Fn   uint64
 	Sret uint32
-	Args map[string][]StackArg
+	Args []StackArg
 }
 
 type StackArg struct {
@@ -34,10 +33,10 @@ type StackArg struct {
 	Size   uint32
 }
 
-func ObjGetStackArgs(file *elf.File) (StackArgInfo, bool) {
+func ObjGetStackArgs(file *elf.File) (map[string]StackArgInfo, bool) {
 	sec := file.Section(".stack_args")
 	if sec == nil {
-		return StackArgInfo{}, false
+		return nil, false
 	}
 
 	syms, err := file.Symbols()
@@ -49,35 +48,34 @@ func ObjGetStackArgs(file *elf.File) (StackArgInfo, bool) {
 		symtab[sym.Value] = sym.Name
 	}
 
-	info := StackArgInfo{
-		Args: make(map[string][]StackArg),
-	}
+	info := make(map[string]StackArgInfo)
 
-	b := make([]byte, 8)
+	b64 := make([]byte, 8)
+	b32 := make([]byte, 4)
 	idx := uint64(0)
 	for idx < sec.Size {
-		sec.ReadAt(b, int64(idx))
+		sec.ReadAt(b64, int64(idx))
 		idx += 8
-		info.Fn = binary.LittleEndian.Uint64(b)
+		fn := binary.LittleEndian.Uint64(b64)
 
-		sec.ReadAt(b, int64(idx))
+		sec.ReadAt(b32, int64(idx))
 		idx += 4
-		info.Sret = binary.LittleEndian.Uint32(b)
+		sret := binary.LittleEndian.Uint32(b32)
 
-		sec.ReadAt(b, int64(idx))
+		sec.ReadAt(b32, int64(idx))
 		idx += 4
-		entries := binary.LittleEndian.Uint32(b)
+		entries := binary.LittleEndian.Uint32(b32)
 
 		var args []StackArg
 		for i := uint32(0); i < entries; i++ {
 			// stack offset
-			sec.ReadAt(b, int64(idx))
+			sec.ReadAt(b32, int64(idx))
 			idx += 4
-			offset := binary.LittleEndian.Uint32(b)
+			offset := binary.LittleEndian.Uint32(b32)
 			// size
-			sec.ReadAt(b, int64(idx))
+			sec.ReadAt(b32, int64(idx))
 			idx += 4
-			size := binary.LittleEndian.Uint32(b)
+			size := binary.LittleEndian.Uint32(b32)
 
 			args = append(args, StackArg{
 				Offset: offset,
@@ -85,8 +83,11 @@ func ObjGetStackArgs(file *elf.File) (StackArgInfo, bool) {
 			})
 		}
 
-		sym := symtab[info.Fn]
-		info.Args[sym] = args
+		sym := symtab[fn]
+		info[sym] = StackArgInfo{
+			Sret: sret,
+			Args: args,
+		}
 	}
 
 	return info, true
@@ -146,7 +147,33 @@ type Options struct {
 	Dynamic   bool
 	Embed     bool
 	NoVerify  bool
-	StackArgs StackArgInfo
+	StackArgs map[string]StackArgInfo
+}
+
+// Returns sret, nstack.
+func GetStackInfo(stackArgs map[string]StackArgInfo, s string, warn bool) (int, int) {
+	if stackArgs == nil {
+		return 0, 0
+	}
+
+	info, ok := stackArgs[s]
+	if !ok {
+		return 0, 0
+	}
+
+	if info.Sret != 0 && warn {
+		fmt.Fprintf(os.Stderr, "warning: %s has struct return (unsupported)\n", s)
+	}
+
+	args := info.Args
+	n := 0
+	for _, a := range args {
+		n += int(a.Size)
+	}
+	if n != 0 && warn {
+		fmt.Fprintf(os.Stderr, "warning: %s has %d bytes of stack arguments (unsupported)\n", s, n)
+	}
+	return int(info.Sret), n
 }
 
 func GenTrampolines(file string, opts Options) {
@@ -155,33 +182,20 @@ func GenTrampolines(file string, opts Options) {
 		fatal(err)
 	}
 
+	if opts.StackArgs != nil {
+
+	}
+	for _, s := range opts.Syms {
+		GetStackInfo(opts.StackArgs, s, true)
+	}
+
 	ExecTemplate(w, file, ReadEmbed("embed/lib_trampolines.S.in"), map[string]any{
 		"lib":        opts.Lib,
 		"lib_prefix": opts.LibPrefix,
 		"syms":       opts.Syms,
 	}, map[string]any{
 		"n_stack_args": func(s string) int {
-			if opts.StackArgs.Args == nil {
-				return 0
-			}
-
-			if opts.StackArgs.Sret != 0 {
-				fmt.Fprintf(os.Stderr, "warning: %s has struct return (unsupported)\n", s)
-			}
-
-			args, ok := opts.StackArgs.Args[s]
-			if !ok {
-				return 0
-			}
-			n := 0
-			for _, a := range args {
-				n += int(a.Size)
-			}
-
-			if n != 0 {
-				fmt.Fprintf(os.Stderr, "warning: %s has stack arguments (unsupported)\n", s, n)
-			}
-
+			_, n := GetStackInfo(opts.StackArgs, s, false)
 			return n
 		},
 	})
