@@ -182,9 +182,6 @@ func GenTrampolines(file string, opts Options) {
 		fatal(err)
 	}
 
-	if opts.StackArgs != nil {
-
-	}
 	for _, s := range opts.Syms {
 		GetStackInfo(opts.StackArgs, s, true)
 	}
