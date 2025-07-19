@@ -9,7 +9,7 @@ go = find_program('go')
 
 lfibind = custom_target('lfi-bind',
   output: 'lfi-bind',
-  input: src + ['embed/lib_init.c.in', 'embed/lib_init.h.in', 'embed/lib_trampolines.S.in'],
+  input: src + ['embed/lib_init.c.in', 'embed/lib.h.in', 'embed/lib_trampolines.S.in'],
   command: [go, 'build', '-o', '@OUTPUT@', '@INPUT0@'],
   build_by_default: true,
   install: true,

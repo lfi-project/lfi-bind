@@ -238,7 +238,7 @@ func GenInitHeader(file string, lib string) {
 		fatal(err)
 	}
 
-	ExecTemplate(w, file, ReadEmbed("embed/lib_init.h.in"), map[string]any{
+	ExecTemplate(w, file, ReadEmbed("embed/lib.h.in"), map[string]any{
 		"lib": lib,
 	}, nil)
 

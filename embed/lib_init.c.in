@@ -74,6 +74,32 @@ void
     lfi_box_unregister_cb({{.lib}}_box, fn);
 }
 
+void *
+{{.lib}}_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t off)
+{
+    struct LFIBox *box = {{.lib}}_box;
+    if ((flags & LFI_MAP_FIXED) == 0) {
+        return (void *) lfi_box_l2p(box, lfi_box_mapany(box, length, prot, flags, fd, off));
+    } else {
+        lfiptr box_addr = lfi_box_p2l(box, (uintptr_t) addr);
+        return (void *) lfi_box_l2p(box, lfi_box_mapat(box, box_addr, length, prot, flags, fd, off));
+    }
+}
+
+int
+{{.lib}}_mprotect(void *addr, size_t length, int prot)
+{
+    struct LFIBox *box = {{.lib}}_box;
+    return lfi_box_mprotect(box, lfi_box_p2l(box, (uintptr_t) addr), length, prot);
+}
+
+int
+{{.lib}}_munmap(void *addr, size_t length)
+{
+    struct LFIBox *box = {{.lib}}_box;
+    return lfi_box_munmap(box, lfi_box_p2l(box, (uintptr_t) addr), length);
+}
+
 {{if not .dynamic}}
 static void
 resolve(struct LFILinuxProc *proc, lfiptr *loc, const char *name)

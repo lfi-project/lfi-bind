@@ -1,0 +1,50 @@
+#pragma once
+
+#include <stddef.h>
+
+#include "lfi.h"
+
+// Call malloc inside the sandbox.
+void *
+{{.lib}}_malloc(size_t size);
+
+// Call realloc inside the sandbox.
+void *
+{{.lib}}_realloc(size_t size);
+
+// Call calloc inside the sandbox.
+void *
+{{.lib}}_calloc(size_t count, size_t size);
+
+// Call free inside the sandbox.
+void
+{{.lib}}_free(void *p);
+
+// Register a callback for the sandbox. 'fn' is the function to register, and a
+// new function pointer is returned that is callable by the sandbox.
+void *
+{{.lib}}_register_cb(void *fn);
+
+// Unregister fn as a sandbox callback. 'fn' is the host function pointer (not
+// the sandbox function pointer returned by register_cb).
+void
+{{.lib}}_unregister_cb(void *fn);
+
+// Create a memory mapping in the sandbox. 'flags' must a combination of
+// LFI_MAP_SHARED, LFI_MAP_PRIVATE, LFI_MAP_FIXED, LFI_MAP_ANONYMOUS and 'prot'
+// must be a combination of LFI_PROT_NONE, LFI_PROT_READ, LFI_PROT_WRITE,
+// LFI_PROT_EXEC. Automatically performs verification for executable pages. If
+// LFI_MAP_FIXED is not used, it will pick an arbitrary available location
+// within the sandbox.
+void *
+{{.lib}}_mmap(void *addr, size_t length, int prot, int flags, int fd,
+    off_t off);
+
+// Apply protections to a memory region inside the sandbox. Automatically
+// performs verification for executable pages.
+int
+{{.lib}}_mprotect(void *addr, size_t length, int prot);
+
+// Unmap a memory mapping inside the sandbox.
+int
+{{.lib}}_munmap(void *addr, size_t length);
