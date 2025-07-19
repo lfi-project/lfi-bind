@@ -62,6 +62,18 @@ void
     return lfi_lib_free({{.lib}}_box, &{{.lib}}_ctx, p);
 }
 
+void *
+{{.lib}}_register_cb(void *fn)
+{
+    return lfi_box_register_cb({{.lib}}_box, fn);
+}
+
+void
+{{.lib}}_unregister_cb(void *fn)
+{
+    lfi_box_unregister_cb({{.lib}}_box, fn);
+}
+
 {{if not .dynamic}}
 static void
 resolve(struct LFILinuxProc *proc, lfiptr *loc, const char *name)

@@ -10,6 +10,7 @@ lfi_linux = subproject('lfi-runtime').get_variable('lfi_linux')
 
 subdir('add')
 subdir('multi')
+subdir('callback')
 
 # Disabled because there isn't currently a good mechanism to link boxrt.lfi
 # with the correct dynamic linker.

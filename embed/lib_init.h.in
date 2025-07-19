@@ -2,14 +2,28 @@
 
 #include <stddef.h>
 
+// Call malloc inside the sandbox.
 void *
 {{.lib}}_malloc(size_t size);
 
+// Call realloc inside the sandbox.
 void *
 {{.lib}}_realloc(size_t size);
 
+// Call calloc inside the sandbox.
 void *
 {{.lib}}_calloc(size_t count, size_t size);
 
+// Call free inside the sandbox.
 void
 {{.lib}}_free(void *p);
+
+// Register a callback for the sandbox. 'fn' is the function to register, and a
+// new function pointer is returned that is callable by the sandbox.
+void *
+{{.lib}}_register_cb(void *fn);
+
+// Unregister fn as a sandbox callback. 'fn' is the host function pointer (not
+// the sandbox function pointer returned by register_cb).
+void
+{{.lib}}_unregister_cb(void *fn);
