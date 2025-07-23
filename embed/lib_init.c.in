@@ -34,9 +34,7 @@ _Thread_local struct LFIContext *{{.lib}}_ctx;
 
 struct LFIBox *{{.lib}}_box;
 
-{{if not .embed}}
 static const char *library_file = "{{.lib_path}}";
-{{end}}
 
 void *
 {{.lib}}_malloc(size_t size)
@@ -114,6 +112,7 @@ resolve(struct LFILinuxProc *proc, lfiptr *loc, const char *name)
 struct Buf {
     void *data;
     size_t size;
+    const char *name;
 };
 
 {{if .embed}}
@@ -138,6 +137,7 @@ readfile(const char *path)
     return (struct Buf) {
         .data = p,
         .size = sz,
+        .name = path,
     };
 }
 
@@ -227,6 +227,7 @@ init(void)
     struct Buf prog = (struct Buf) {
         .data = embed_data,
         .size = embed_size,
+        .name = library_file,
     };
 {{else}}
 // Create proc from file.
@@ -244,7 +245,7 @@ init(void)
     if (!proc)
         ERROR("error: failed to create LFI proc");
 
-    bool ok = lfi_proc_load(proc, prog.data, prog.size);
+    bool ok = lfi_proc_load(proc, prog.data, prog.size, prog.name);
     if (!ok)
         ERROR("error: failed to load LFI library");
 
