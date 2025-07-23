@@ -48,3 +48,11 @@ int
 // Unmap a memory mapping inside the sandbox.
 int
 {{.lib}}_munmap(void *addr, size_t length);
+
+// Push 'size' bytes onto the sandbox stack and return a pointer to the memory.
+void *
+{{.lib}}_stack_push(size_t size);
+
+// Pop 'size' bytes from the sandbox stack.
+void *
+{{.lib}}_stack_pop(size_t size);

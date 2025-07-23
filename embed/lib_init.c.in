@@ -72,6 +72,29 @@ void
     lfi_box_unregister_cb({{.lib}}_box, fn);
 }
 
+#ifdef LFI_ARCH_X64
+#define REG_SP rsp
+#else
+#define REG_SP sp
+#endif
+
+void *
+{{.lib}}_stack_push(size_t size)
+{
+    struct LFIRegs *regs = lfi_ctx_regs({{.lib}}_ctx);
+    lfiptr sp = regs->REG_SP;
+    regs->REG_SP = sp - size;
+    return lfi_box_l2p({{.lib}}_box, sp);
+}
+
+void *
+{{.lib}}_stack_pop(size_t size)
+{
+    struct LFIRegs *regs = lfi_ctx_regs({{.lib}}_ctx);
+    regs->REG_SP = regs->REG_SP + size;
+    return lfi_box_l2p({{.lib}}_box, regs->REG_SP);
+}
+
 void *
 {{.lib}}_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t off)
 {
