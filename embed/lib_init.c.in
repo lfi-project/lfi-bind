@@ -1,4 +1,5 @@
 #include "lfi_linux.h"
+#include "lfi_arch.h"
 
 #include <assert.h>
 #include <unistd.h>
@@ -84,7 +85,7 @@ void *
     struct LFIRegs *regs = lfi_ctx_regs({{.lib}}_ctx);
     lfiptr sp = regs->REG_SP;
     regs->REG_SP = sp - size;
-    return lfi_box_l2p({{.lib}}_box, sp);
+    return (void *) lfi_box_l2p({{.lib}}_box, sp);
 }
 
 void *
@@ -92,7 +93,7 @@ void *
 {
     struct LFIRegs *regs = lfi_ctx_regs({{.lib}}_ctx);
     regs->REG_SP = regs->REG_SP + size;
-    return lfi_box_l2p({{.lib}}_box, regs->REG_SP);
+    return (void *) lfi_box_l2p({{.lib}}_box, regs->REG_SP);
 }
 
 void *
