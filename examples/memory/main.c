@@ -4,6 +4,7 @@
 
 #include "membox.h"
 
+int lib_deref(int *p);
 void lib_memset(int *p, int v, size_t n);
 int lib_sum(int *p, size_t n);
 
@@ -37,4 +38,10 @@ int main() {
     assert(s == 6);
 
     membox_munmap(p, pagesize);
+
+    int *x = membox_stack_push(sizeof(int));
+    *x = 42;
+    s = lib_deref(x);
+    membox_stack_pop(sizeof(*x));
+    assert(s == 42);
 }

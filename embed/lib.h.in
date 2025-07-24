@@ -1,8 +1,9 @@
 #pragma once
 
-#include <stddef.h>
+#include "lfi_core.h"
 
-#include "lfi.h"
+#include <stddef.h>
+#include <stdlib.h>
 
 // Call malloc inside the sandbox.
 void *
@@ -56,3 +57,90 @@ void *
 // Pop 'size' bytes from the sandbox stack.
 void *
 {{.lib}}_stack_pop(size_t size);
+
+// LFI context and sandbox variables for advanced usage with liblfi.
+extern _Thread_local struct LFIContext *{{.lib}}_ctx;
+
+extern struct LFIBox *{{.lib}}_box;
+
+#ifdef LFI_DEBUG
+
+// Macros for logging debug errors.
+
+#define LFI_LOG_TAG "lfi-{{.lib}}"
+
+#ifdef __ANDROID__
+
+#include <android/log.h>
+
+#define LFI_LOG(...) \
+((void) __android_log_print(ANDROID_LOG_INFO, LFI_LOG_TAG, __VA_ARGS__))
+
+#else
+
+#define LFI_LOG(fmt, ...) \
+fprintf(stderr, "[" LFI_LOG_TAG "] " fmt "\n", ##__VA_ARGS__)
+
+#endif
+
+#define LFI_ERROR(...)    \
+do {                      \
+    LFI_LOG(__VA_ARGS__); \
+    abort();              \
+} while (0)
+
+// Macro hacks to allow debug checks for pointers being passed into the sandbox.
+
+#define LFI_IS_POINTER(x) \
+    (__builtin_classify_type(x) == 5)
+
+#define LFI_CHECK1(x) \
+    do { \
+        if (LFI_IS_POINTER(x) && !lfi_box_ptrvalid({{.lib}}_box, (lfiptr) x)) { \
+            LFI_ERROR("error: address 0x%lx is not in the sandbox", (lfiptr) x); \
+        } \
+    } while (0)
+
+// Expansion macros for 1 to 8 arguments
+#define EXPAND_LFI_CHECK_1(a) \
+    LFI_CHECK1(a)
+
+#define EXPAND_LFI_CHECK_2(a, b) \
+    LFI_CHECK1(a); LFI_CHECK1(b)
+
+#define EXPAND_LFI_CHECK_3(a, b, c) \
+    LFI_CHECK1(a); LFI_CHECK1(b); LFI_CHECK1(c)
+
+#define EXPAND_LFI_CHECK_4(a, b, c, d) \
+    LFI_CHECK1(a); LFI_CHECK1(b); LFI_CHECK1(c); LFI_CHECK1(d)
+
+#define EXPAND_LFI_CHECK_5(a, b, c, d, e) \
+    LFI_CHECK1(a); LFI_CHECK1(b); LFI_CHECK1(c); LFI_CHECK1(d); LFI_CHECK1(e)
+
+#define EXPAND_LFI_CHECK_6(a, b, c, d, e, f) \
+    LFI_CHECK1(a); LFI_CHECK1(b); LFI_CHECK1(c); LFI_CHECK1(d); LFI_CHECK1(e); LFI_CHECK1(f)
+
+#define EXPAND_LFI_CHECK_7(a, b, c, d, e, f, g) \
+    LFI_CHECK1(a); LFI_CHECK1(b); LFI_CHECK1(c); LFI_CHECK1(d); LFI_CHECK1(e); LFI_CHECK1(f); LFI_CHECK1(g)
+
+#define EXPAND_LFI_CHECK_8(a, b, c, d, e, f, g, h) \
+    LFI_CHECK1(a); LFI_CHECK1(b); LFI_CHECK1(c); LFI_CHECK1(d); LFI_CHECK1(e); LFI_CHECK1(f); LFI_CHECK1(g); LFI_CHECK1(h)
+
+#define GET_MACRO(_1,_2,_3,_4,_5,_6,_7,_8,NAME,...) NAME
+
+#define LFI_CHECK(...) \
+    GET_MACRO(__VA_ARGS__, \
+              EXPAND_LFI_CHECK_8, \
+              EXPAND_LFI_CHECK_7, \
+              EXPAND_LFI_CHECK_6, \
+              EXPAND_LFI_CHECK_5, \
+              EXPAND_LFI_CHECK_4, \
+              EXPAND_LFI_CHECK_3, \
+              EXPAND_LFI_CHECK_2, \
+              EXPAND_LFI_CHECK_1)(__VA_ARGS__)
+
+#else
+
+#define LFI_CHECK(...)
+
+#endif
