@@ -63,7 +63,7 @@ extern _Thread_local struct LFIContext *{{.lib}}_ctx;
 
 extern struct LFIBox *{{.lib}}_box;
 
-#ifdef LFI_DEBUG
+#ifndef LFI_NODEBUG
 
 // Macros for logging debug errors.
 
@@ -97,7 +97,7 @@ do {                      \
 #define LFI_CHECK1(x) \
     do { \
         if (LFI_IS_POINTER(x) && !lfi_box_ptrvalid({{.lib}}_box, (lfiptr) x)) { \
-            LFI_ERROR("error: address 0x%lx is not in the sandbox", (lfiptr) x); \
+            LFI_ERROR("%s:%d: error: argument '" #x "' is not in the sandbox (address: 0x%lx)", __FILE__, __LINE__, (lfiptr) x); \
         } \
     } while (0)
 
@@ -126,10 +126,10 @@ do {                      \
 #define EXPAND_LFI_CHECK_8(a, b, c, d, e, f, g, h) \
     LFI_CHECK1(a); LFI_CHECK1(b); LFI_CHECK1(c); LFI_CHECK1(d); LFI_CHECK1(e); LFI_CHECK1(f); LFI_CHECK1(g); LFI_CHECK1(h)
 
-#define GET_MACRO(_1,_2,_3,_4,_5,_6,_7,_8,NAME,...) NAME
+#define LFI_GET_MACRO(_1,_2,_3,_4,_5,_6,_7,_8,NAME,...) NAME
 
 #define LFI_CHECK(...) \
-    GET_MACRO(__VA_ARGS__, \
+    LFI_GET_MACRO(__VA_ARGS__, \
               EXPAND_LFI_CHECK_8, \
               EXPAND_LFI_CHECK_7, \
               EXPAND_LFI_CHECK_6, \
@@ -144,3 +144,9 @@ do {                      \
 #define LFI_CHECK(...)
 
 #endif
+
+#define LFI_CALL(fn, ...)       \
+    ({                          \
+        LFI_CHECK(__VA_ARGS__); \
+        fn(__VA_ARGS__);        \
+    })
