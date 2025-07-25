@@ -102,6 +102,8 @@ do {                      \
     } while (0)
 
 // Expansion macros for 1 to 8 arguments
+#define EXPAND_LFI_CHECK_0()
+
 #define EXPAND_LFI_CHECK_1(a) \
     LFI_CHECK1(a)
 
@@ -129,7 +131,7 @@ do {                      \
 #define LFI_GET_MACRO(_1,_2,_3,_4,_5,_6,_7,_8,NAME,...) NAME
 
 #define LFI_CHECK(...) \
-    LFI_GET_MACRO(__VA_ARGS__, \
+    LFI_GET_MACRO(__VA_ARGS__ __VA_OPT__(,) \
               EXPAND_LFI_CHECK_8, \
               EXPAND_LFI_CHECK_7, \
               EXPAND_LFI_CHECK_6, \
@@ -137,7 +139,8 @@ do {                      \
               EXPAND_LFI_CHECK_4, \
               EXPAND_LFI_CHECK_3, \
               EXPAND_LFI_CHECK_2, \
-              EXPAND_LFI_CHECK_1)(__VA_ARGS__)
+              EXPAND_LFI_CHECK_1, \
+              EXPAND_LFI_CHECK_0)(__VA_ARGS__)
 
 #else
 
