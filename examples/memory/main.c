@@ -10,7 +10,7 @@ int lib_sum(int *p, size_t n);
 
 int main() {
     size_t n = 3;
-    int *p = malloc(n * sizeof(int));
+    int *p = membox_malloc(n * sizeof(int));
     assert(p);
 
     p[0] = 1;
