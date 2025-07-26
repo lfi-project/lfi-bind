@@ -12,6 +12,7 @@ subdir('add')
 subdir('multi')
 subdir('callback')
 subdir('memory')
+subdir('thread')
 
 # Disabled because there isn't currently a good mechanism to link boxrt.lfi
 # with the correct dynamic linker.
