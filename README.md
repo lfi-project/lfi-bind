@@ -44,7 +44,7 @@ Usage of ./lfi-bind:
     	path to library executable at runtime
   -lib-prefix string
     	prefix to put on library symbols
-  -sym-prefix string
+  -symbols-prefix string
     	prefix used to match exported symbols
   -symbols string
     	comma-separated list of exported symbols

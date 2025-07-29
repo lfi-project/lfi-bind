@@ -252,7 +252,7 @@ func main() {
 	genInit := flag.String("gen-init", "", "output file for initialization functions")
 	symbols := flag.String("symbols", "", "comma-separated list of exported symbols")
 	symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
-	symPrefix := flag.String("sym-prefix", "", "prefix used to match exported symbols")
+	symPrefix := flag.String("symbols-prefix", "", "determine list of symbols based on matching a prefix")
 	libPrefix := flag.String("lib-prefix", "", "prefix to put on library symbols")
 	embedF := flag.Bool("embed", false, "fully embed the input library into the data segment")
 	noVerify := flag.Bool("no-verify", false, "disable verification")
@@ -296,6 +296,9 @@ func main() {
 	}
 
 	if *symbols == "" && *symbolsFile == "" {
+		if *symPrefix == "" && !dynamic {
+			fatal("error: must provide a way to match symbols (-symbols, -symbols-file, -symbols-prefix)")
+		}
 		syms = FindDynamicSymbols(input, *symPrefix)
 	}
 
