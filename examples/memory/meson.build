@@ -6,7 +6,7 @@ libmem = custom_target('libmem.lfi',
 mem_gen = custom_target('libmem-wrapper',
   output: ['lib_trampolines.S', 'lib_init.c', 'membox.h'],
   input: libmem,
-  command: [lfibind, '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'membox', '-symbols', 'lib_memset,lib_sum,lib_deref', '@INPUT@'])
+  command: [lfibind, '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'membox', '-symbols', 'lib_memset,lib_sum,lib_deref', '@INPUT@'])
 
 mem = executable(
   'mem',

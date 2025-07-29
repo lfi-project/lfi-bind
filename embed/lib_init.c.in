@@ -146,59 +146,49 @@ static size_t embed_size;
 
 {{else}}
 
-static struct Buf
-readfile(const char *path)
+static bool
+exists(const char *path)
 {
     FILE *f = fopen(path, "r");
     if (!f) {
-        return (struct Buf) { 0 };
+        return false;
     }
-    fseek(f, 0, SEEK_END);
-    size_t sz = ftell(f);
-    void *p = mmap(NULL, sz, PROT_READ, MAP_PRIVATE, fileno(f), 0);
-    assert(p != (void *) -1);
     fclose(f);
-    return (struct Buf) {
-        .data = p,
-        .size = sz,
-        .name = path,
-    };
+    return true;
 }
 
-static struct Buf
-readlibfile(const char *path)
+static char *
+getfilepath(const char *path)
 {
     // Try reading the file directly.
-    struct Buf b = readfile(path);
-    if (b.data)
-        return b;
+    if (exists(path))
+        return strndup(path, FILENAME_MAX);
 
     // Try searching for it on the LFI_LIBRARY_PATH.
     const char* env_path = getenv("LFI_LIBRARY_PATH");
-    if (env_path == NULL) {
-        return (struct Buf) { 0 };
-    }
+    if (env_path == NULL)
+        return NULL;
 
-    char *lfi_path = strdup(env_path);
-    if (lfi_path == NULL) {
-        return (struct Buf) { 0 };
-    }
+    char *lfi_path = strndup(env_path, FILENAME_MAX);
+    if (lfi_path == NULL)
+        return NULL;
 
-    char *token = strtok(lfi_path, ":");
+    char *saveptr;
+    char *token = strtok_r(lfi_path, ":", &saveptr);
     while (token != NULL) {
         char full_path[FILENAME_MAX];
         snprintf(full_path, sizeof(full_path), "%s/%s", token, path);
 
-        b = readfile(full_path);
-        if (b.data) {
-            break;
+        if (exists(full_path)) {
+            free(lfi_path);
+            return strndup(full_path, FILENAME_MAX);
         }
 
-        token = strtok(NULL, ":");
+        token = strtok_r(NULL, ":", &saveptr);
     }
 
     free(lfi_path);
-    return b;
+    return NULL;
 }
 
 {{end}}
@@ -247,12 +237,18 @@ init(void)
 {
     lfi_init();
 
+    struct LFILinuxProc *proc = lfi_proc_new(lfi_linux_lib_engine());
+    if (!proc)
+        ERROR("error: failed to create LFI proc");
+
 {{if .embed}}
     struct Buf prog = (struct Buf) {
         .data = embed_data,
         .size = embed_size,
         .name = library_file,
     };
+
+    bool ok = lfi_proc_load(proc, prog.data, prog.size, prog.name);
 {{else}}
 // Create proc from file.
  {{if .dynamic}}
@@ -260,21 +256,20 @@ init(void)
  {{else}}
     const char *exe_file = library_file;
  {{end}}
-    struct Buf prog = readlibfile(exe_file);
-    if (!prog.data)
-        ERROR("error: failed to open %s", exe_file);
+    const char *prog_path = getfilepath(exe_file);
+    if (!prog_path)
+        ERROR("error: could not find %s", exe_file);
+    bool ok = lfi_proc_load_file(proc, prog_path);
 {{end}}
 
-    struct LFILinuxProc *proc = lfi_proc_new(lfi_linux_lib_engine());
-    if (!proc)
-        ERROR("error: failed to create LFI proc");
-
-    bool ok = lfi_proc_load(proc, prog.data, prog.size, prog.name);
     if (!ok)
         ERROR("error: failed to load LFI library");
 
     // Initialize return.
-    lfi_box_init_ret(lfi_proc_box(proc));
+    lfiptr lfi_ret = lfi_proc_sym(proc, "_lfi_ret");
+    if (!lfi_ret)
+        ERROR("error: LFI library does not have _lfi_ret symbol");
+    lfi_box_register_ret(lfi_proc_box(proc), lfi_ret);
 
     // Initialize callbacks.
     ok = lfi_box_cbinit(lfi_proc_box(proc));
