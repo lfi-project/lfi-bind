@@ -4,7 +4,7 @@ This guide will explain how to manually recreate the example in `examples/add`.
 
 First make sure that you have an LFI toolchain available. You can get a
 prebuilt one from here:
-https://github.com/lfi-project/lfi-llvm-toolchain/releases/latest.
+https://github.com/lfi-project/lfi/releases/latest.
 
 You will also need `liblfi.a`. You can get that from the prebuilts listed above
 (`aarch64-lfi-tools/lib` should contain it), or you can build it from source
