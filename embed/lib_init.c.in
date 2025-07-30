@@ -271,11 +271,6 @@ init(void)
         ERROR("error: LFI library does not have _lfi_ret symbol");
     lfi_box_register_ret(lfi_proc_box(proc), lfi_ret);
 
-    // Initialize callbacks.
-    ok = lfi_box_cbinit(lfi_proc_box(proc));
-    if (!ok)
-        ERROR("error: failed to initialize LFI callbacks");
-
     // Create and run thread.
     const char *argv[] = {
         "{{.lib}}",
