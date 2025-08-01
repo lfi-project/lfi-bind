@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -93,7 +94,7 @@ func ObjGetStackArgs(file *elf.File) (map[string]StackArgInfo, bool) {
 	return info, true
 }
 
-func FindDynamicSymbols(input string, symPrefix string) []string {
+func FindDynamicSymbols(input string) []string {
 	var syms []string
 
 	f, err := elf.Open(input)
@@ -109,9 +110,7 @@ func FindDynamicSymbols(input string, symPrefix string) []string {
 
 	for _, sym := range symbols {
 		if elf.ST_TYPE(sym.Info) == elf.STT_FUNC && elf.ST_BIND(sym.Info) == elf.STB_GLOBAL && sym.Section != elf.SHN_UNDEF {
-			if strings.HasPrefix(sym.Name, symPrefix) {
-				syms = append(syms, sym.Name)
-			}
+			syms = append(syms, sym.Name)
 		}
 	}
 	return syms
@@ -245,6 +244,35 @@ func GenInitHeader(file string, lib string) {
 	w.Close()
 }
 
+func DemangleSymbol(mangledSymbol string) (string, error) {
+	cmd := exec.Command("llvm-cxxfilt", "--no-params", mangledSymbol)
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("command failed: %s, stderr: %s", err, stderr.String())
+	}
+
+	return strings.TrimSpace(out.String()), nil
+}
+
+func DemangleMappings(allSyms []string) map[string][]string {
+	out := make(map[string][]string)
+
+	for _, sym := range allSyms {
+		demangled, err := DemangleSymbol(sym)
+		if err != nil {
+			fatal(fmt.Sprintf("error: failed to demangle symbol %q: %v", sym, err))
+		}
+		out[demangled] = append(out[demangled], sym)
+	}
+
+	return out;
+}
+
 func main() {
 	lib := flag.String("lib", "lib", "library name for function prefixes")
 	libPath := flag.String("lib-path", "", "path to library executable at runtime")
@@ -253,6 +281,7 @@ func main() {
 	symbols := flag.String("symbols", "", "comma-separated list of exported symbols")
 	symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
 	symPrefix := flag.String("symbols-prefix", "", "determine list of symbols based on matching a prefix")
+	demangle := flag.Bool("demangle", false, "demangle C++ symbols")
 	libPrefix := flag.String("lib-prefix", "", "prefix to put on library symbols")
 	embedF := flag.Bool("embed", false, "fully embed the input library into the data segment")
 	noVerify := flag.Bool("no-verify", false, "disable verification")
@@ -276,7 +305,7 @@ func main() {
 		}
 	}
 
-	var syms []string
+	var wantedSyms []string
 
 	if *symbolsFile != "" {
 		data, err := os.ReadFile(*symbolsFile)
@@ -287,19 +316,51 @@ func main() {
 		for _, l := range lines {
 			l = strings.TrimSpace(l)
 			if l != "" {
-				syms = append(syms, l)
+				wantedSyms = append(wantedSyms, l)
 			}
 		}
 	}
 	if *symbols != "" {
-		syms = append(syms, strings.Split(*symbols, ",")...)
+		wantedSyms = append(wantedSyms, strings.Split(*symbols, ",")...)
 	}
 
 	if *symbols == "" && *symbolsFile == "" {
 		if *symPrefix == "" && !dynamic {
 			fatal("error: must provide a way to match symbols (-symbols, -symbols-file, -symbols-prefix)")
 		}
-		syms = FindDynamicSymbols(input, *symPrefix)
+	}
+
+	var syms []string
+
+	var allSyms []string
+	if *symPrefix != "" || *demangle {
+	  allSyms = FindDynamicSymbols(input)
+	}
+
+	var manglings map[string][]string
+	if *demangle {
+		manglings = DemangleMappings(allSyms)
+		for _, s := range wantedSyms {
+			syms = append(syms, manglings[s]...)
+		}
+	} else {
+		syms = wantedSyms
+	}
+
+	if *symPrefix != "" {
+		if *demangle {
+			for orig, mangled := range manglings {
+				if strings.HasPrefix(orig, *symPrefix) {
+					syms = append(syms, mangled...)
+				}
+			}
+		} else {
+			for _, s := range allSyms {
+				if strings.HasPrefix(s, *symPrefix) {
+					syms = append(syms, s)
+				}
+			}
+		}
 	}
 
 	if *libPath == "" {
