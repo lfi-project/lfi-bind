@@ -11,9 +11,10 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/ianlancetaylor/demangle"
 )
 
 //go:embed embed
@@ -244,29 +245,11 @@ func GenInitHeader(file string, lib string) {
 	w.Close()
 }
 
-func DemangleSymbol(mangledSymbol string) (string, error) {
-	cmd := exec.Command("llvm-cxxfilt", "--no-params", mangledSymbol)
-
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("command failed: %s, stderr: %s", err, stderr.String())
-	}
-
-	return strings.TrimSpace(out.String()), nil
-}
-
 func DemangleMappings(allSyms []string) map[string][]string {
 	out := make(map[string][]string)
 
 	for _, sym := range allSyms {
-		demangled, err := DemangleSymbol(sym)
-		if err != nil {
-			fatal(fmt.Sprintf("error: failed to demangle symbol %q: %v", sym, err))
-		}
+		demangled := demangle.Filter(sym, demangle.NoParams)
 		out[demangled] = append(out[demangled], sym)
 	}
 
@@ -281,7 +264,7 @@ func main() {
 	symbols := flag.String("symbols", "", "comma-separated list of exported symbols")
 	symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
 	symPrefix := flag.String("symbols-prefix", "", "determine list of symbols based on matching a prefix")
-	demangle := flag.Bool("demangle", false, "demangle C++ symbols")
+	demangleSyms := flag.Bool("demangle", false, "demangle C++ symbols")
 	libPrefix := flag.String("lib-prefix", "", "prefix to put on library symbols")
 	embedF := flag.Bool("embed", false, "fully embed the input library into the data segment")
 	noVerify := flag.Bool("no-verify", false, "disable verification")
@@ -333,12 +316,12 @@ func main() {
 	var syms []string
 
 	var allSyms []string
-	if *symPrefix != "" || *demangle {
+	if *symPrefix != "" || *demangleSyms {
 	  allSyms = FindDynamicSymbols(input)
 	}
 
 	var manglings map[string][]string
-	if *demangle {
+	if *demangleSyms {
 		manglings = DemangleMappings(allSyms)
 		for _, s := range wantedSyms {
 			syms = append(syms, manglings[s]...)
@@ -348,7 +331,7 @@ func main() {
 	}
 
 	if *symPrefix != "" {
-		if *demangle {
+		if *demangleSyms {
 			for orig, mangled := range manglings {
 				if strings.HasPrefix(orig, *symPrefix) {
 					syms = append(syms, mangled...)
