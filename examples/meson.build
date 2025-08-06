@@ -9,6 +9,7 @@ endif
 lfi_linux = subproject('lfi-runtime').get_variable('lfi_linux')
 
 subdir('add')
+subdir('add-vscript')
 subdir('multi')
 subdir('callback')
 subdir('memory')

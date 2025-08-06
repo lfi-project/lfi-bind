@@ -253,7 +253,7 @@ func DemangleMappings(allSyms []string) map[string][]string {
 		out[demangled] = append(out[demangled], sym)
 	}
 
-	return out;
+	return out
 }
 
 func main() {
@@ -264,6 +264,7 @@ func main() {
 	symbols := flag.String("symbols", "", "comma-separated list of exported symbols")
 	symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
 	symPrefix := flag.String("symbols-prefix", "", "determine list of symbols based on matching a prefix")
+	symbolsAll := flag.Bool("symbols-all", false, "bind all dynamically exported symbols")
 	demangleSyms := flag.Bool("demangle", false, "demangle C++ symbols")
 	libPrefix := flag.String("lib-prefix", "", "prefix to put on library symbols")
 	embedF := flag.Bool("embed", false, "fully embed the input library into the data segment")
@@ -307,17 +308,15 @@ func main() {
 		wantedSyms = append(wantedSyms, strings.Split(*symbols, ",")...)
 	}
 
-	if *symbols == "" && *symbolsFile == "" {
-		if *symPrefix == "" && !dynamic {
-			fatal("error: must provide a way to match symbols (-symbols, -symbols-file, -symbols-prefix)")
-		}
+	if !*symbolsAll && *symbols == "" && *symbolsFile == "" && *symPrefix == "" && !dynamic {
+		fatal("error: must provide a way to match symbols (-symbols, -symbols-file, -symbols-prefix, -symbols-all)")
 	}
 
 	var syms []string
 
 	var allSyms []string
-	if *symPrefix != "" || *demangleSyms {
-	  allSyms = FindDynamicSymbols(input)
+	if *symbolsAll || *symPrefix != "" || *demangleSyms {
+		allSyms = FindDynamicSymbols(input)
 	}
 
 	var manglings map[string][]string
@@ -326,6 +325,8 @@ func main() {
 		for _, s := range wantedSyms {
 			syms = append(syms, manglings[s]...)
 		}
+	} else if *symbolsAll {
+		syms = allSyms
 	} else {
 		syms = wantedSyms
 	}

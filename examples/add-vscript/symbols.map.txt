@@ -1,0 +1,13 @@
+LFI {
+  global:
+    add;
+    _lfi_thread_create;
+    _lfi_thread_destroy;
+    _lfi_malloc;
+    _lfi_calloc;
+    _lfi_realloc;
+    _lfi_free;
+    _lfi_ret;
+  local:
+    *;
+};
