@@ -100,7 +100,7 @@ func FindDynamicSymbols(input string) []string {
 
 	f, err := elf.Open(input)
 	if err != nil {
-		log.Fatalf("Failed to open ELF file: %v", err)
+		log.Fatalf("Failed to open ELF file %s: %v", input, err)
 	}
 	defer f.Close()
 
@@ -353,7 +353,7 @@ func main() {
 
 	f, err := elf.Open(input)
 	if err != nil {
-		fatal("failed to open ELF file: %w", err)
+		log.Fatalf("Failed to open ELF file %s: %v", input, err)
 	}
 	stackArgs, ok := ObjGetStackArgs(f)
 	if !ok {
