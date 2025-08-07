@@ -176,6 +176,20 @@ func GetStackInfo(stackArgs map[string]StackArgInfo, s string, warn bool) (int, 
 	return int(info.Sret), n
 }
 
+func GenInc(file string, opts Options) {
+	w, err := os.Create(file)
+	if err != nil {
+		fatal(err)
+	}
+
+	ExecTemplate(w, file, ReadEmbed("embed/lib.inc.s.in"), map[string]any{
+		"lib":      opts.Lib,
+		"lib_path": opts.LibPath,
+	}, nil)
+
+	w.Close()
+}
+
 func GenTrampolines(file string, opts Options) {
 	w, err := os.Create(file)
 	if err != nil {
@@ -261,6 +275,7 @@ func main() {
 	libPath := flag.String("lib-path", "", "path to library executable at runtime")
 	genTrampolines := flag.String("gen-trampolines", "", "output file for trampolines")
 	genInit := flag.String("gen-init", "", "output file for initialization functions")
+	genInc := flag.String("gen-inc", "", "output file for .incbin file")
 	symbols := flag.String("symbols", "", "comma-separated list of exported symbols")
 	symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
 	symPrefix := flag.String("symbols-prefix", "", "determine list of symbols based on matching a prefix")
@@ -308,7 +323,7 @@ func main() {
 		wantedSyms = append(wantedSyms, strings.Split(*symbols, ",")...)
 	}
 
-	if !*symbolsAll && *symbols == "" && *symbolsFile == "" && *symPrefix == "" && !dynamic {
+	if (*genTrampolines != "" || *genInit != "") && !*symbolsAll && *symbols == "" && *symbolsFile == "" && *symPrefix == "" && !dynamic {
 		fatal("error: must provide a way to match symbols (-symbols, -symbols-file, -symbols-prefix, -symbols-all)")
 	}
 
@@ -380,5 +395,9 @@ func main() {
 	if *genInit != "" {
 		GenInit(*genInit, opts)
 		GenInitHeader(filepath.Join(filepath.Dir(*genInit), *lib+".h"), *lib)
+	}
+
+	if *genInc != "" {
+		GenInc(*genInc, opts)
 	}
 }

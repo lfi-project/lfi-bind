@@ -1,0 +1,9 @@
+.section .rodata
+.global {{.lib}}_start
+.global {{.lib}}_end
+.p2align 14
+{{.lib}}_start:
+    .incbin "{{.lib_path}}"
+{{.lib}}_end:
+
+.section .note.GNU-stack,"",@progbits
