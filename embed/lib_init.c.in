@@ -141,8 +141,8 @@ struct Buf {
 
 {{if .embed}}
 
-static uint8_t embed_data[];
-static size_t embed_size;
+static const uint8_t embed_data[];
+static const size_t embed_size;
 
 {{else}}
 
@@ -242,13 +242,7 @@ init(void)
         ERROR("error: failed to create LFI proc");
 
 {{if .embed}}
-    struct Buf prog = (struct Buf) {
-        .data = embed_data,
-        .size = embed_size,
-        .name = library_file,
-    };
-
-    bool ok = lfi_proc_load(proc, prog.data, prog.size, prog.name);
+    bool ok = lfi_proc_load(proc, embed_data, embed_size, library_file);
 {{else}}
 // Create proc from file.
  {{if .dynamic}}
@@ -351,8 +345,8 @@ __attribute__((constructor)) void
 }
 
 {{if .embed}}
-static uint8_t embed_data[] = {
+static const uint8_t embed_data[] = {
     {{.embed_data}}
 };
-static size_t embed_size = sizeof(embed_data);
+static const size_t embed_size = sizeof(embed_data);
 {{end}}
