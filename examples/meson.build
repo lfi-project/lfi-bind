@@ -1,6 +1,6 @@
 cpu = target_machine.cpu_family()
 
-lficc = find_program(cpu + '-lfi-linux-musl-clang', required: false)
+lficc = find_program(cpu + '_lfi-linux-musl-clang', required: false)
 if not lficc.found()
   warning('could not find LFI compiler')
   subdir_done()
