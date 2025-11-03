@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <setjmp.h>
 #include <sys/mman.h>
 
 #define LOG_TAG "lfi-{{.lib}}"
@@ -342,6 +343,20 @@ __attribute__((constructor)) void
 {{.lib}}_init(void)
 {
     init();
+}
+
+static void
+setjmp_callback(void *env, int v)
+{
+    longjmp(env, v);
+}
+
+void
+{{.lib}}_setjmp(jmp_buf env, void *lfi_env)
+{
+    void *box_cb = {{.lib}}_register_cb(setjmp_callback);
+    assert(box_cb);
+    lfi_lib_setjmp({{.lib}}_box, &{{.lib}}_ctx, lfi_env, env, box_cb);
 }
 
 {{if .embed}}

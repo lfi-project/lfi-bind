@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <setjmp.h>
 
 // Call malloc inside the sandbox.
 void *
@@ -49,6 +50,11 @@ int
 // Unmap a memory mapping inside the sandbox.
 int
 {{.lib}}_munmap(void *addr, size_t length);
+
+// Register a setjmp so that a longjmp from inside the sandbox with lfi_env
+// will return to this location.
+void
+{{.lib}}_setjmp(jmp_buf env, void *lfi_env);
 
 // Push 'size' bytes onto the sandbox stack and return a pointer to the memory.
 void *
