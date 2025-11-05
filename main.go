@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"debug/elf"
-	"embed"
 	"encoding/binary"
 	"flag"
 	"fmt"
@@ -14,11 +13,21 @@ import (
 	"path/filepath"
 	"strings"
 
+	_ "embed"
+
 	"github.com/ianlancetaylor/demangle"
 )
 
-//go:embed embed
-var files embed.FS
+var (
+	//go:embed embed/lib.h.in
+	embedLibH string
+	//go:embed embed/lib.inc.s.in
+	embedLibIncS string
+	//go:embed embed/lib_init.c.in
+	embedLibInitC string
+	//go:embed embed/lib_trampolines.S.in
+	embedLibTrampolinesS string
+)
 
 func fatal(v ...interface{}) {
 	fmt.Fprintln(os.Stderr, v...)
@@ -117,14 +126,6 @@ func FindDynamicSymbols(input string) []string {
 	return syms
 }
 
-func ReadEmbed(s string) string {
-	data, err := files.ReadFile(s)
-	if err != nil {
-		fatal(err)
-	}
-	return string(data)
-}
-
 func ExecTemplate(w io.Writer, name string, data string, vars map[string]any, funcs template.FuncMap) {
 	tmpl := template.New(name)
 	tmpl.Funcs(funcs)
@@ -182,7 +183,7 @@ func GenInc(file string, opts Options) {
 		fatal(err)
 	}
 
-	ExecTemplate(w, file, ReadEmbed("embed/lib.inc.s.in"), map[string]any{
+	ExecTemplate(w, file, embedLibIncS, map[string]any{
 		"lib":      opts.Lib,
 		"lib_path": opts.LibPath,
 	}, nil)
@@ -200,7 +201,7 @@ func GenTrampolines(file string, opts Options) {
 		GetStackInfo(opts.StackArgs, s, true)
 	}
 
-	ExecTemplate(w, file, ReadEmbed("embed/lib_trampolines.S.in"), map[string]any{
+	ExecTemplate(w, file, embedLibTrampolinesS, map[string]any{
 		"lib":        opts.Lib,
 		"lib_prefix": opts.LibPrefix,
 		"syms":       opts.Syms,
@@ -233,7 +234,7 @@ func GenInit(file string, opts Options) {
 		embedData = buf.String()
 	}
 
-	ExecTemplate(w, file, ReadEmbed("embed/lib_init.c.in"), map[string]any{
+	ExecTemplate(w, file, embedLibInitC, map[string]any{
 		"lib":        opts.Lib,
 		"lib_path":   opts.LibPath,
 		"syms":       opts.Syms,
@@ -252,7 +253,7 @@ func GenInitHeader(file string, lib string) {
 		fatal(err)
 	}
 
-	ExecTemplate(w, file, ReadEmbed("embed/lib.h.in"), map[string]any{
+	ExecTemplate(w, file, embedLibH, map[string]any{
 		"lib": lib,
 	}, nil)
 
