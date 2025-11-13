@@ -14,8 +14,6 @@ import (
 	"strings"
 
 	_ "embed"
-
-	"github.com/ianlancetaylor/demangle"
 )
 
 var (
@@ -260,17 +258,6 @@ func GenInitHeader(file string, lib string) {
 	w.Close()
 }
 
-func DemangleMappings(allSyms []string) map[string][]string {
-	out := make(map[string][]string)
-
-	for _, sym := range allSyms {
-		demangled := demangle.Filter(sym, demangle.NoParams)
-		out[demangled] = append(out[demangled], sym)
-	}
-
-	return out
-}
-
 func main() {
 	lib := flag.String("lib", "lib", "library name for function prefixes")
 	libPath := flag.String("lib-path", "", "path to library executable at runtime")
@@ -281,7 +268,6 @@ func main() {
 	symbolsFile := flag.String("symbols-file", "", "list of symbols in a file, one line per symbol")
 	symPrefix := flag.String("symbols-prefix", "", "determine list of symbols based on matching a prefix")
 	symbolsAll := flag.Bool("symbols-all", false, "bind all dynamically exported symbols")
-	demangleSyms := flag.Bool("demangle", false, "demangle C++ symbols")
 	libPrefix := flag.String("lib-prefix", "", "prefix to put on library symbols")
 	embedF := flag.Bool("embed", false, "fully embed the input library into the data segment")
 	noVerify := flag.Bool("no-verify", false, "disable verification")
@@ -331,34 +317,20 @@ func main() {
 	var syms []string
 
 	var allSyms []string
-	if *symbolsAll || *symPrefix != "" || *demangleSyms {
+	if *symbolsAll || *symPrefix != "" {
 		allSyms = FindDynamicSymbols(input)
 	}
 
-	var manglings map[string][]string
-	if *demangleSyms {
-		manglings = DemangleMappings(allSyms)
-		for _, s := range wantedSyms {
-			syms = append(syms, manglings[s]...)
-		}
-	} else if *symbolsAll {
+	if *symbolsAll {
 		syms = allSyms
 	} else {
 		syms = wantedSyms
 	}
 
 	if *symPrefix != "" {
-		if *demangleSyms {
-			for orig, mangled := range manglings {
-				if strings.HasPrefix(orig, *symPrefix) {
-					syms = append(syms, mangled...)
-				}
-			}
-		} else {
-			for _, s := range allSyms {
-				if strings.HasPrefix(s, *symPrefix) {
-					syms = append(syms, s)
-				}
+		for _, s := range allSyms {
+			if strings.HasPrefix(s, *symPrefix) {
+				syms = append(syms, s)
 			}
 		}
 	}
