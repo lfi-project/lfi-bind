@@ -142,7 +142,10 @@ struct Buf {
 
 {{if .embed}}
 
-static const uint8_t embed_data[];
+// Align to page boundary for use with mremap. Currently we only support
+// systems with a page size of up to 16KiB. Consider increasing to 65536
+// for use with AArch64 systems with 64KiB pages.
+static const __attribute__((aligned(16384))) uint8_t embed_data[];
 static const size_t embed_size;
 
 {{else}}
@@ -243,7 +246,7 @@ init(void)
         ERROR("error: failed to create LFI proc");
 
 {{if .embed}}
-    bool ok = lfi_proc_load(proc, embed_data, embed_size, library_file);
+    bool ok = lfi_proc_load_remap(proc, embed_data, embed_size, library_file);
 {{else}}
 // Create proc from file.
  {{if .dynamic}}
