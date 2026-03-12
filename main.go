@@ -146,7 +146,9 @@ type Options struct {
 	Dynamic     bool
 	Embed       bool
 	NoVerify    bool
-	Constructor bool
+	Constructor    bool
+	Verbose        bool
+	NoSigaltstack  bool
 	StackArgs   map[string]StackArgInfo
 }
 
@@ -242,6 +244,8 @@ func GenInit(file string, opts Options) {
 		"embed":       opts.Embed,
 		"embed_data":  embedData,
 		"constructor": opts.Constructor,
+		"verbose":         opts.Verbose,
+		"no_sigaltstack":  opts.NoSigaltstack,
 	}, nil)
 
 	w.Close()
@@ -273,7 +277,9 @@ func main() {
 	libPrefix := flag.String("lib-prefix", "", "prefix to put on library symbols")
 	embedF := flag.Bool("embed", false, "fully embed the input library into the data segment")
 	noVerify := flag.Bool("no-verify", false, "disable verification")
-	constructor := flag.Bool("constructor", false, "use a constructor for automatic initialization")
+	noConstructor := flag.Bool("no-constructor", false, "disable constructor for automatic initialization")
+	verbose := flag.Bool("verbose", false, "enable verbose logging")
+	noSigaltstack := flag.Bool("no-sigaltstack", false, "disable automatic sigaltstack initialization")
 
 	flag.Parse()
 
@@ -361,7 +367,9 @@ func main() {
 		Dynamic:     dynamic,
 		Embed:       *embedF,
 		NoVerify:    *noVerify,
-		Constructor: *constructor,
+		Constructor: !*noConstructor,
+		Verbose:       *verbose,
+		NoSigaltstack: *noSigaltstack,
 		StackArgs:   stackArgs,
 	}
 

@@ -6,7 +6,7 @@ libthread = custom_target('libthread.lfi',
 thread_gen = custom_target('libthread-wrapper',
   output: ['lib_trampolines.S', 'lib_init.c', 'threadbox.h'],
   input: libthread,
-  command: [lfibind, '-constructor', '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'threadbox', '-symbols', 'foo', '@INPUT@'])
+  command: [lfibind, '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'threadbox', '-symbols', 'foo', '@INPUT@'])
 
 thread = executable(
   'thread',

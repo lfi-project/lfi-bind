@@ -3,7 +3,7 @@ subdir('libcb')
 cb_gen = custom_target('libcb-wrapper',
   output: ['lib_trampolines.S', 'lib_init.c', 'cbbox.h'],
   input: libcb,
-  command: [lfibind, '-constructor', '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'cbbox', '-symbols', 'cb', '@INPUT@'])
+  command: [lfibind, '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'cbbox', '-symbols', 'cb', '@INPUT@'])
 
 cb = executable(
   'cb',

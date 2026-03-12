@@ -223,13 +223,17 @@ lfi_init(void)
     bool ok = lfi_linux_lib_init((struct LFIOptions) {
         .boxsize = 4UL * 1024 * 1024 * 1024,
         .pagesize = getpagesize(),
-        .verbose = false,
+{{if .verbose}}
+        .verbose = true,
+{{end}}
 {{if .no_verify}}
         .no_verify = true,
 {{end}}
+{{if .no_sigaltstack}}
+        .no_init_sigaltstack = true,
+{{end}}
     }, (struct LFILinuxOptions) {
         .stacksize = 2UL * 1024 * 1024,
-        .verbose = false,
 {{if .dynamic}}
         // TODO: don't allow complete file system access if dynamic...
         .dir_maps = all,
