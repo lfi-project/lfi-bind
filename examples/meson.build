@@ -10,10 +10,12 @@ lfi_linux = subproject('lfi-runtime').get_variable('lfi_linux')
 
 subdir('add')
 subdir('add-vscript')
-subdir('multi')
 subdir('callback')
 subdir('memory')
 subdir('thread')
+# Disabled due to lib_engine supporting only 1 sandbox.
+# subdir('multi')
+# Disabled due to setjmp/longjmp support being experimental.
 # subdir('setjmp')
 
 # Disabled because there isn't currently a good mechanism to link boxrt.lfi
