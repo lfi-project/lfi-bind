@@ -14,8 +14,11 @@
 
 #include <android/log.h>
 
-#define LOG(...) \
-    ((void) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
+#define LOG(fmt, ...) \
+    do { \
+        __android_log_print(ANDROID_LOG_INFO, LOG_TAG, fmt, ##__VA_ARGS__); \
+        fprintf(stderr, "[" LOG_TAG "] " fmt "\n", ##__VA_ARGS__); \
+    } while (0)
 
 #else
 
@@ -205,13 +208,15 @@ static const char *all[] = {
 };
 {{end}}
 
-static void
+static bool
 lfi_init(void)
 {
 {{if .dynamic}}
     char *p = getcwd(cwd, sizeof(cwd));
-    if (p != cwd)
-        ERROR("error: failed to read cwd");
+    if (p != cwd) {
+        LOG("error: failed to read cwd");
+        return false;
+    }
 {{end}}
 
     // Create engine if it does not exist.
@@ -231,18 +236,24 @@ lfi_init(void)
         .wd = cwd,
 {{end}}
     });
-    if (!ok)
-        ERROR("error: failed to initialize liblfi");
+    if (!ok) {
+        LOG("error: failed to initialize liblfi");
+        return false;
+    }
+    return true;
 }
 
-static void
-init(void)
+bool
+{{.lib}}_init(void)
 {
-    lfi_init();
+    if (!lfi_init())
+        return false;
 
     struct LFILinuxProc *proc = lfi_proc_new(lfi_linux_lib_engine());
-    if (!proc)
-        ERROR("error: failed to create LFI proc");
+    if (!proc) {
+        LOG("error: failed to create LFI proc");
+        return false;
+    }
 
 {{if .embed}}
     bool ok = lfi_proc_load_remap(proc, embed_data, embed_size, library_file);
@@ -254,18 +265,24 @@ init(void)
     const char *exe_file = library_file;
  {{end}}
     const char *prog_path = getfilepath(exe_file);
-    if (!prog_path)
-        ERROR("error: could not find %s", exe_file);
+    if (!prog_path) {
+        LOG("error: could not find %s", exe_file);
+        return false;
+    }
     bool ok = lfi_proc_load_file(proc, prog_path);
 {{end}}
 
-    if (!ok)
-        ERROR("error: failed to load LFI library");
+    if (!ok) {
+        LOG("error: failed to load LFI library");
+        return false;
+    }
 
     // Initialize return.
     lfiptr lfi_ret = lfi_proc_sym(proc, "_lfi_ret");
-    if (!lfi_ret)
-        ERROR("error: LFI library does not have _lfi_ret symbol");
+    if (!lfi_ret) {
+        LOG("error: LFI library does not have _lfi_ret symbol");
+        return false;
+    }
     lfi_box_register_ret(lfi_proc_box(proc), lfi_ret);
 
     // Create and run thread.
@@ -280,11 +297,15 @@ init(void)
 
     struct LFILinuxThread *t = lfi_thread_new(proc,
         sizeof(argv)/sizeof(argv[0]) - 1, &argv[0], &envp[0]);
-    if (!t)
-        ERROR("failed to initialize LFI thread");
+    if (!t) {
+        LOG("failed to initialize LFI thread");
+        return false;
+    }
     int result = lfi_thread_run(t);
-    if (result != 0)
-        ERROR("LFI thread returned non-zero value: %d", result);
+    if (result != 0) {
+        LOG("LFI thread returned non-zero value: %d", result);
+        return false;
+    }
 
     // Initialize clone.
     lfi_linux_init_clone(t);
@@ -298,18 +319,24 @@ init(void)
 
     size_t len = strlen(library_file) + 1;
     void *sbx_library_file = {{.lib}}_malloc(len);
-    if (!sbx_library_file)
-        ERROR("error: could not allocate library name in sandbox");
+    if (!sbx_library_file) {
+        LOG("error: could not allocate library name in sandbox");
+        return false;
+    }
     memcpy(sbx_library_file, library_file, len);
 
     // Inject dlopen call.
     lfiptr handle = LFI_INVOKE(box, lfi_thread_ctxp(t),
             lfi_proc_sym(proc, "_lfi_dlopen"), lfiptr, (void *, int),
             sbx_library_file, LINUX_RTLD_NOW);
-    if (!handle)
-        ERROR("error: dlopen could not load %s", library_file);
-    if (!lfi_box_ptrvalid(box, handle))
-        ERROR("error: dlopen returned invalid pointer");
+    if (!handle) {
+        LOG("error: dlopen could not load %s", library_file);
+        return false;
+    }
+    if (!lfi_box_ptrvalid(box, handle)) {
+        LOG("error: dlopen returned invalid pointer");
+        return false;
+    }
     {{.lib}}_free(sbx_library_file);
 
     // Inject dlsym calls.
@@ -317,8 +344,10 @@ init(void)
  {{- range $sym := .syms}}
     size_t sym_len = sizeof("{{$sym}}");
     void *sbx_sym = {{$.lib}}_malloc(sym_len);
-    if (!sbx_sym)
-        ERROR("error: could not allocate symbol name in sandbox");
+    if (!sbx_sym) {
+        LOG("error: could not allocate symbol name in sandbox");
+        return false;
+    }
     memcpy(sbx_sym, "{{$sym}}", sym_len);
 
     extern lfiptr {{$.lib}}_addr_{{$sym}};
@@ -339,13 +368,17 @@ init(void)
  {{- end}}
 
 {{end}}
+    return true;
 }
 
-__attribute__((constructor)) void
-{{.lib}}_init(void)
+{{if .constructor}}
+__attribute__((constructor)) static void
+{{.lib}}_init_constructor(void)
 {
-    init();
+    if (!{{.lib}}_init())
+        ERROR("error: failed to initialize {{.lib}}");
 }
+{{end}}
 
 static void
 setjmp_callback(void *env, int v)

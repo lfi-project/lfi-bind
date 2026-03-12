@@ -6,7 +6,7 @@ libdiv = custom_target('libdiv.lfi',
 div_gen = custom_target('libdiv-wrapper',
   output: ['lib_trampolines.S', 'lib_init.c', 'divbox.h'],
   input: libdiv,
-  command: [lfibind, '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'divbox', '-symbols', 'divide,div_info_init,div_jmpbuf', '@INPUT@'])
+  command: [lfibind, '-constructor', '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'divbox', '-symbols', 'divide,div_info_init,div_jmpbuf', '@INPUT@'])
 
 div = executable(
   'div',

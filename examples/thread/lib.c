@@ -2,5 +2,6 @@
 #include <stdio.h>
 
 void foo(void) {
-    printf("foo\n");
+    // Note: SYS_MINIMAL does not support TLS, and printf uses TLS.
+    /* printf("foo\n"); */
 }

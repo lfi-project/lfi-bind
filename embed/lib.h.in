@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <setjmp.h>
 
+// Initialize the sandboxed library. Returns true on success, false on failure.
+bool
+{{.lib}}_init(void);
+
 // Call malloc inside the sandbox.
 void *
 {{.lib}}_malloc(size_t size);
@@ -75,25 +79,28 @@ extern struct LFIBox *{{.lib}}_box;
 
 #define LFI_LOG_TAG "lfi-{{.lib}}"
 
-#ifdef __ANDROID__
+#if 0 && defined(__ANDROID__)
 
 #include <android/log.h>
 
-#define LFI_LOG(...) \
-((void) __android_log_print(ANDROID_LOG_INFO, LFI_LOG_TAG, __VA_ARGS__))
+#define LFI_LOG(fmt, ...) \
+    do { \
+        __android_log_print(ANDROID_LOG_INFO, LFI_LOG_TAG, fmt, ##__VA_ARGS__); \
+        fprintf(stderr, "[" LFI_LOG_TAG "] " fmt "\n", ##__VA_ARGS__); \
+    } while (0)
 
 #else
 
 #define LFI_LOG(fmt, ...) \
-fprintf(stderr, "[" LFI_LOG_TAG "] " fmt "\n", ##__VA_ARGS__)
+    fprintf(stderr, "[" LFI_LOG_TAG "] " fmt "\n", ##__VA_ARGS__)
 
 #endif
 
-#define LFI_ERROR(...)    \
-do {                      \
-    LFI_LOG(__VA_ARGS__); \
-    abort();              \
-} while (0)
+#define LFI_ERROR(...) \
+    do { \
+        LFI_LOG(__VA_ARGS__); \
+        abort(); \
+    } while (0)
 
 // Macro hacks to allow debug checks for pointers being passed into the sandbox.
 

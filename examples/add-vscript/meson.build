@@ -6,7 +6,7 @@ libadd_vscript = custom_target('libadd_vscript.lfi',
 add_vscript_gen = custom_target('libadd_vscript-wrapper',
   output: ['lib_trampolines.S', 'lib_init.c', 'add_vscriptbox.h'],
   input: libadd_vscript,
-  command: [lfibind, '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'add_vscriptbox', '-symbols-all', '@INPUT@'])
+  command: [lfibind, '-constructor', '-embed', '-gen-trampolines', '@OUTPUT0@', '-gen-init', '@OUTPUT1@', '-lib', 'add_vscriptbox', '-symbols-all', '@INPUT@'])
 
 add_vscript = executable(
   'add_vscript',
