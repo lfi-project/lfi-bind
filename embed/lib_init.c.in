@@ -35,6 +35,10 @@
 
 #define LINUX_RTLD_NOW 2
 
+#ifdef __ANDROID__
+extern uintptr_t __stack_chk_guard;
+#endif
+
 _Thread_local struct LFIContext *{{.lib}}_ctx;
 
 struct LFIBox *{{.lib}}_box;
@@ -318,6 +322,15 @@ bool
 
     {{.lib}}_box = box;
     {{.lib}}_ctx = *lfi_thread_ctxp(t);
+
+    #ifdef __ANDROID__
+    // Initialize stack protector guard if the symbol exists in the sandbox.
+    lfiptr sbx_stack_chk_guard = lfi_proc_sym(proc, "__stack_chk_guard");
+    if (sbx_stack_chk_guard) {
+        uintptr_t *ptr = (uintptr_t *) lfi_box_l2p(box, sbx_stack_chk_guard);
+        *ptr = __stack_chk_guard;
+    }
+    #endif
 
 {{if .dynamic}}
 
