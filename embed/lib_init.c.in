@@ -52,9 +52,9 @@ void *
 }
 
 void *
-{{.lib}}_realloc(size_t size)
+{{.lib}}_realloc(void *p, size_t size)
 {
-    return lfi_lib_realloc({{.lib}}_box, &{{.lib}}_ctx, size);
+    return lfi_lib_realloc({{.lib}}_box, &{{.lib}}_ctx, p, size);
 }
 
 void *
