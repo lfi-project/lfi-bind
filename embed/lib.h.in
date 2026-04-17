@@ -161,46 +161,50 @@ extern struct LFIBox *{{.lib}}_box;
 
 #endif
 
+#define STR(x) #x
+#define XSTR(x) STR(x)
+#define TYOF(x) __typeof__(x)
+
 // Argument padding macros for LFI_CALL so that additional arguments up to 8
 // total get zeroed out.
 
 #define LFI_CALL_0(fn) ({ \
-    extern __typeof__(fn()) _lfi_z_##fn(long,long,long,long,long,long,long,long); \
+    extern TYOF(fn()) _lfi_z_##fn(long,long,long,long,long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
     _lfi_z_##fn(0,0,0,0,0,0,0,0); \
 })
 
 #define LFI_CALL_1(fn, a) ({ \
-    extern __typeof__(fn(a)) _lfi_z_##fn(__typeof__(a), long,long,long,long,long,long,long); \
+    extern TYOF(fn(a)) _lfi_z_##fn(TYOF(a), long,long,long,long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
     _lfi_z_##fn(a, 0,0,0,0,0,0,0); \
 })
 
 #define LFI_CALL_2(fn, a,b) ({ \
-    extern __typeof__(fn(a,b)) _lfi_z_##fn(__typeof__(a), __typeof__(b), long,long,long,long,long,long); \
+    extern TYOF(fn(a,b)) _lfi_z_##fn(TYOF(a), TYOF(b), long,long,long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
     _lfi_z_##fn(a,b, 0,0,0,0,0,0); \
 })
 
 #define LFI_CALL_3(fn, a,b,c) ({ \
-    extern __typeof__(fn(a,b,c)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), long,long,long,long,long); \
+    extern TYOF(fn(a,b,c)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), long,long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
     _lfi_z_##fn(a,b,c, 0,0,0,0,0); \
 })
 
 #define LFI_CALL_4(fn, a,b,c,d) ({ \
-    extern __typeof__(fn(a,b,c,d)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), __typeof__(d), long,long,long,long); \
+    extern TYOF(fn(a,b,c,d)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), TYOF(d), long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
     _lfi_z_##fn(a,b,c,d, 0,0,0,0); \
 })
 
 #define LFI_CALL_5(fn, a,b,c,d,e) ({ \
-    extern __typeof__(fn(a,b,c,d,e)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), __typeof__(d), __typeof__(e), long,long,long); \
+    extern TYOF(fn(a,b,c,d,e)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), TYOF(d), TYOF(e), long,long,long) asm("_lfi_z_" XSTR(fn)); \
     _lfi_z_##fn(a,b,c,d,e, 0,0,0); \
 })
 
 #define LFI_CALL_6(fn, a,b,c,d,e,f) ({ \
-    extern __typeof__(fn(a,b,c,d,e,f)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), __typeof__(d), __typeof__(e), __typeof__(f), long,long); \
+    extern TYOF(fn(a,b,c,d,e,f)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), TYOF(d), TYOF(e), TYOF(f), long,long) asm("_lfi_z_" XSTR(fn)); \
     _lfi_z_##fn(a,b,c,d,e,f, 0,0); \
 })
 
 #define LFI_CALL_7(fn, a,b,c,d,e,f,g) ({ \
-    extern __typeof__(fn(a,b,c,d,e,f,g)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), __typeof__(d), __typeof__(e), __typeof__(f), __typeof__(g), long); \
+    extern TYOF(fn(a,b,c,d,e,f,g)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), TYOF(d), TYOF(e), TYOF(f), TYOF(g), long) asm("_lfi_z_" XSTR(fn)); \
     _lfi_z_##fn(a,b,c,d,e,f,g, 0); \
 })
 
