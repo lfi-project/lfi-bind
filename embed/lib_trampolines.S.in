@@ -31,7 +31,10 @@
 {{- range $sym := .syms}}
 .p2align 4
 .global {{$.lib_prefix}}{{$sym}}
+.global _lfi_z_{{$sym}}
+.hidden _lfi_z_{{$sym}}
 {{$.lib_prefix}}{{$sym}}:
+_lfi_z_{{$sym}}:
     bti jc
     adrp x10, :got:{{$.lib}}_addr_{{$sym}}
     ldr	x10, [x10, :got_lo12:{{$.lib}}_addr_{{$sym}}]
@@ -103,7 +106,10 @@
 {{- range $sym := .syms}}
 .p2align 4
 .global {{$.lib_prefix}}{{$sym}}
+.global _lfi_z_{{$sym}}
+.hidden _lfi_z_{{$sym}}
 {{$.lib_prefix}}{{$sym}}:
+_lfi_z_{{$sym}}:
     endbr64
     // pushq ${{(n_stack_args $sym)}} not included yet to avoid breaking existing combinations of lfi-bind/liblfi
     movq {{$.lib}}_addr_{{$sym}}@GOTPCREL(%rip), %r10

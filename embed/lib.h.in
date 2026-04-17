@@ -161,8 +161,65 @@ extern struct LFIBox *{{.lib}}_box;
 
 #endif
 
-#define LFI_CALL(fn, ...)       \
-    ({                          \
-        LFI_CHECK(__VA_ARGS__); \
-        fn(__VA_ARGS__);        \
+// Argument padding macros for LFI_CALL so that additional arguments up to 8
+// total get zeroed out.
+
+#define LFI_CALL_0(fn) ({ \
+    extern __typeof__(fn()) _lfi_z_##fn(long,long,long,long,long,long,long,long); \
+    _lfi_z_##fn(0,0,0,0,0,0,0,0); \
+})
+
+#define LFI_CALL_1(fn, a) ({ \
+    extern __typeof__(fn(a)) _lfi_z_##fn(__typeof__(a), long,long,long,long,long,long,long); \
+    _lfi_z_##fn(a, 0,0,0,0,0,0,0); \
+})
+
+#define LFI_CALL_2(fn, a,b) ({ \
+    extern __typeof__(fn(a,b)) _lfi_z_##fn(__typeof__(a), __typeof__(b), long,long,long,long,long,long); \
+    _lfi_z_##fn(a,b, 0,0,0,0,0,0); \
+})
+
+#define LFI_CALL_3(fn, a,b,c) ({ \
+    extern __typeof__(fn(a,b,c)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), long,long,long,long,long); \
+    _lfi_z_##fn(a,b,c, 0,0,0,0,0); \
+})
+
+#define LFI_CALL_4(fn, a,b,c,d) ({ \
+    extern __typeof__(fn(a,b,c,d)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), __typeof__(d), long,long,long,long); \
+    _lfi_z_##fn(a,b,c,d, 0,0,0,0); \
+})
+
+#define LFI_CALL_5(fn, a,b,c,d,e) ({ \
+    extern __typeof__(fn(a,b,c,d,e)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), __typeof__(d), __typeof__(e), long,long,long); \
+    _lfi_z_##fn(a,b,c,d,e, 0,0,0); \
+})
+
+#define LFI_CALL_6(fn, a,b,c,d,e,f) ({ \
+    extern __typeof__(fn(a,b,c,d,e,f)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), __typeof__(d), __typeof__(e), __typeof__(f), long,long); \
+    _lfi_z_##fn(a,b,c,d,e,f, 0,0); \
+})
+
+#define LFI_CALL_7(fn, a,b,c,d,e,f,g) ({ \
+    extern __typeof__(fn(a,b,c,d,e,f,g)) _lfi_z_##fn(__typeof__(a), __typeof__(b), __typeof__(c), __typeof__(d), __typeof__(e), __typeof__(f), __typeof__(g), long); \
+    _lfi_z_##fn(a,b,c,d,e,f,g, 0); \
+})
+
+#define LFI_CALL_8(fn, a,b,c,d,e,f,g,h) \
+    fn(a,b,c,d,e,f,g,h)
+
+#define LFI_CALL_SEL(_1,_2,_3,_4,_5,_6,_7,_8,NAME,...) NAME
+
+#define LFI_CALL(fn, ...)                      \
+    ({                                         \
+        LFI_CHECK(__VA_ARGS__);                \
+        LFI_CALL_SEL(__VA_ARGS__ __VA_OPT__(,) \
+            LFI_CALL_8,                        \
+            LFI_CALL_7,                        \
+            LFI_CALL_6,                        \
+            LFI_CALL_5,                        \
+            LFI_CALL_4,                        \
+            LFI_CALL_3,                        \
+            LFI_CALL_2,                        \
+            LFI_CALL_1,                        \
+            LFI_CALL_0)(fn __VA_OPT__(,) __VA_ARGS__); \
     })
