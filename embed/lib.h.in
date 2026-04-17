@@ -161,8 +161,69 @@ extern struct LFIBox *{{.lib}}_box;
 
 #endif
 
-#define LFI_CALL(fn, ...)       \
-    ({                          \
-        LFI_CHECK(__VA_ARGS__); \
-        fn(__VA_ARGS__);        \
+#define STR(x) #x
+#define XSTR(x) STR(x)
+#define TYOF(x) __typeof__(x)
+
+// Argument padding macros for LFI_CALL so that additional arguments up to 8
+// total get zeroed out.
+
+#define LFI_CALL_0(fn) ({ \
+    extern TYOF(fn()) _lfi_z_##fn(long,long,long,long,long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
+    _lfi_z_##fn(0,0,0,0,0,0,0,0); \
+})
+
+#define LFI_CALL_1(fn, a) ({ \
+    extern TYOF(fn(a)) _lfi_z_##fn(TYOF(a), long,long,long,long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
+    _lfi_z_##fn(a, 0,0,0,0,0,0,0); \
+})
+
+#define LFI_CALL_2(fn, a,b) ({ \
+    extern TYOF(fn(a,b)) _lfi_z_##fn(TYOF(a), TYOF(b), long,long,long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
+    _lfi_z_##fn(a,b, 0,0,0,0,0,0); \
+})
+
+#define LFI_CALL_3(fn, a,b,c) ({ \
+    extern TYOF(fn(a,b,c)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), long,long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
+    _lfi_z_##fn(a,b,c, 0,0,0,0,0); \
+})
+
+#define LFI_CALL_4(fn, a,b,c,d) ({ \
+    extern TYOF(fn(a,b,c,d)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), TYOF(d), long,long,long,long) asm("_lfi_z_" XSTR(fn)); \
+    _lfi_z_##fn(a,b,c,d, 0,0,0,0); \
+})
+
+#define LFI_CALL_5(fn, a,b,c,d,e) ({ \
+    extern TYOF(fn(a,b,c,d,e)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), TYOF(d), TYOF(e), long,long,long) asm("_lfi_z_" XSTR(fn)); \
+    _lfi_z_##fn(a,b,c,d,e, 0,0,0); \
+})
+
+#define LFI_CALL_6(fn, a,b,c,d,e,f) ({ \
+    extern TYOF(fn(a,b,c,d,e,f)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), TYOF(d), TYOF(e), TYOF(f), long,long) asm("_lfi_z_" XSTR(fn)); \
+    _lfi_z_##fn(a,b,c,d,e,f, 0,0); \
+})
+
+#define LFI_CALL_7(fn, a,b,c,d,e,f,g) ({ \
+    extern TYOF(fn(a,b,c,d,e,f,g)) _lfi_z_##fn(TYOF(a), TYOF(b), TYOF(c), TYOF(d), TYOF(e), TYOF(f), TYOF(g), long) asm("_lfi_z_" XSTR(fn)); \
+    _lfi_z_##fn(a,b,c,d,e,f,g, 0); \
+})
+
+#define LFI_CALL_8(fn, a,b,c,d,e,f,g,h) \
+    fn(a,b,c,d,e,f,g,h)
+
+#define LFI_CALL_SEL(_1,_2,_3,_4,_5,_6,_7,_8,NAME,...) NAME
+
+#define LFI_CALL(fn, ...)                      \
+    ({                                         \
+        LFI_CHECK(__VA_ARGS__);                \
+        LFI_CALL_SEL(__VA_ARGS__ __VA_OPT__(,) \
+            LFI_CALL_8,                        \
+            LFI_CALL_7,                        \
+            LFI_CALL_6,                        \
+            LFI_CALL_5,                        \
+            LFI_CALL_4,                        \
+            LFI_CALL_3,                        \
+            LFI_CALL_2,                        \
+            LFI_CALL_1,                        \
+            LFI_CALL_0)(fn __VA_OPT__(,) __VA_ARGS__); \
     })
