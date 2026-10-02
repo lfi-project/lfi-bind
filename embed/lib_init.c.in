@@ -332,6 +332,17 @@ bool
     }
     lfi_box_register_ret(lfi_proc_box(proc), lfi_ret);
 
+    struct LFIBox *box = lfi_proc_box(proc);
+
+    #ifdef __ANDROID__
+    // Initialize stack protector guard if the symbol exists in the sandbox.
+    lfiptr sbx_stack_chk_guard = lfi_proc_sym(proc, "__stack_chk_guard");
+    if (sbx_stack_chk_guard) {
+        uintptr_t *ptr = (uintptr_t *) lfi_box_l2p(box, sbx_stack_chk_guard);
+        *ptr = __stack_chk_guard;
+    }
+    #endif
+
     // Create and run thread.
     const char *argv[] = {
         "{{.lib}}",
@@ -357,19 +368,8 @@ bool
     // Initialize clone.
     lfi_linux_init_clone(t);
 
-    struct LFIBox *box = lfi_proc_box(proc);
-
     {{.lib}}_box = box;
     {{.lib}}_ctx = *lfi_thread_ctxp(t);
-
-    #ifdef __ANDROID__
-    // Initialize stack protector guard if the symbol exists in the sandbox.
-    lfiptr sbx_stack_chk_guard = lfi_proc_sym(proc, "__stack_chk_guard");
-    if (sbx_stack_chk_guard) {
-        uintptr_t *ptr = (uintptr_t *) lfi_box_l2p(box, sbx_stack_chk_guard);
-        *ptr = __stack_chk_guard;
-    }
-    #endif
 
 {{if .dynamic}}
 
