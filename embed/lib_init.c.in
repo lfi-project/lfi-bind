@@ -33,8 +33,6 @@
         abort();          \
     } while (0)
 
-#define LINUX_RTLD_NOW 2
-
 #ifdef __ANDROID__
 extern uintptr_t __stack_chk_guard;
 #endif
@@ -141,7 +139,6 @@ int
     return lfi_box_munmap(box, lfi_box_p2l(box, (uintptr_t) addr), length);
 }
 
-{{if not .dynamic}}
 static void
 resolve(struct LFILinuxProc *proc, lfiptr *loc, const char *name)
 {
@@ -154,7 +151,6 @@ resolve(struct LFILinuxProc *proc, lfiptr *loc, const char *name)
     }
     *loc = addr;
 }
-{{end}}
 
 struct Buf {
     void *data;
@@ -219,39 +215,9 @@ getfilepath(const char *path)
 
 {{end}}
 
-{{if or .dir_maps .dynamic}}
-static char cwd[FILENAME_MAX];
-{{end}}
-
-{{if .dynamic}}
-static const char *all[] = {
-    "/=/",
-    NULL,
-};
-{{end}}
-
-{{if .dir_maps}}
-static const char *dir_maps[] = {
-{{- range $map := .dir_maps}}
-    "{{$map}}",
-{{- end}}
-{{- if .dynamic}}
-    "/=/",
-{{- end}}
-    NULL,
-};
-{{end}}
-
 static bool
 lfi_init(void)
 {
-{{if or .dir_maps .dynamic}}
-    char *p = getcwd(cwd, sizeof(cwd));
-    if (p != cwd) {
-        LOG("error: failed to read cwd");
-        return false;
-    }
-{{end}}
 
     // Create engine if it does not exist.
     bool ok = lfi_linux_lib_init((struct LFIOptions) {
@@ -268,14 +234,6 @@ lfi_init(void)
 {{end}}
     }, (struct LFILinuxOptions) {
         .stacksize = 2UL * 1024 * 1024,
-{{if .dir_maps}}
-        .dir_maps = dir_maps,
-        .wd = cwd,
-{{else if .dynamic}}
-        // TODO: don't allow complete file system access if dynamic...
-        .dir_maps = all,
-        .wd = cwd,
-{{end}}
     });
     if (!ok) {
         LOG("error: failed to initialize liblfi");
@@ -305,15 +263,10 @@ bool
 {{if .embed}}
     bool ok = lfi_proc_load_remap(proc, embed_data, embed_size, library_file);
 {{else}}
-// Create proc from file.
- {{if .dynamic}}
-    const char *exe_file = "boxrt.lfi";
- {{else}}
-    const char *exe_file = library_file;
- {{end}}
-    const char *prog_path = getfilepath(exe_file);
+    // Create proc from file.
+    const char *prog_path = getfilepath(library_file);
     if (!prog_path) {
-        LOG("error: could not find %s", exe_file);
+        LOG("error: could not find %s", library_file);
         goto err;
     }
     bool ok = lfi_proc_load_file(proc, prog_path);
@@ -376,58 +329,6 @@ bool
     {{.lib}}_box = box;
     {{.lib}}_ctx = *lfi_thread_ctxp(t);
 
-{{if .dynamic}}
-
-    size_t len = strlen(library_file) + 1;
-    void *sbx_library_file = {{.lib}}_malloc(len);
-    if (!sbx_library_file) {
-        LOG("error: could not allocate library name in sandbox");
-        goto err;
-    }
-    memcpy(sbx_library_file, library_file, len);
-
-    // Inject dlopen call.
-    lfiptr handle = LFI_INVOKE(box, lfi_thread_ctxp(t),
-            lfi_proc_sym(proc, "_lfi_dlopen"), lfiptr, (void *, int),
-            sbx_library_file, LINUX_RTLD_NOW);
-    if (!handle) {
-        LOG("error: dlopen could not load %s", library_file);
-        goto err;
-    }
-    if (!lfi_box_ptrvalid(box, handle)) {
-        LOG("error: dlopen returned invalid pointer");
-        goto err;
-    }
-    {{.lib}}_free(sbx_library_file);
-
-    // Inject dlsym calls.
-    lfiptr dlsym = lfi_proc_sym(proc, "_lfi_dlsym");
- {{- range $sym := .syms}}
-    {
-        size_t sym_len = sizeof("{{$sym}}");
-        void *sbx_sym = {{$.lib}}_malloc(sym_len);
-        if (!sbx_sym) {
-            LOG("error: could not allocate symbol name in sandbox");
-            goto err;
-        }
-        memcpy(sbx_sym, "{{$sym}}", sym_len);
-
-        extern lfiptr {{$.lib}}_addr_{{$sym}};
-        lfiptr sym = LFI_INVOKE(box, lfi_thread_ctxp(t),
-                dlsym, lfiptr, (lfiptr, void *), handle, sbx_sym);
-        if (sym == 0) {
-            LOG("error: symbol not found: {{$sym}}");
-        } else if (!lfi_box_ptrvalid(box, sym)) {
-            // dlsym runs in the sandbox; its result is untrusted.
-            LOG("error: symbol out of sandbox bounds: {{$sym}}");
-            sym = 0;
-        }
-        {{$.lib}}_addr_{{$sym}} = sym;
-        {{$.lib}}_free(sbx_sym);
-    }
- {{- end}}
-
-{{else}}
 
     // Initialize all exported symbols.
  {{- range $sym := .syms}}
@@ -435,7 +336,6 @@ bool
     resolve(proc, &{{$.lib}}_addr_{{$sym}}, "{{$sym}}");
  {{- end}}
 
-{{end}}
     return true;
 
 err:

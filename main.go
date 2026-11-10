@@ -143,13 +143,11 @@ type Options struct {
 	Lib           string
 	LibPrefix     string
 	LibPath       string
-	Dynamic       bool
 	Embed         bool
 	NoVerify      bool
 	Constructor   bool
 	Verbose       bool
 	NoSigaltstack bool
-	DirMaps       []string
 	StackArgs     map[string]StackArgInfo
 }
 
@@ -240,14 +238,12 @@ func GenInit(file string, opts Options) {
 		"lib":            opts.Lib,
 		"lib_path":       opts.LibPath,
 		"syms":           opts.Syms,
-		"dynamic":        opts.Dynamic,
 		"no_verify":      opts.NoVerify,
 		"embed":          opts.Embed,
 		"embed_data":     embedData,
 		"constructor":    opts.Constructor,
 		"verbose":        opts.Verbose,
 		"no_sigaltstack": opts.NoSigaltstack,
-		"dir_maps":       opts.DirMaps,
 	}, nil)
 
 	w.Close()
@@ -282,7 +278,6 @@ func main() {
 	noConstructor := flag.Bool("no-constructor", false, "disable constructor for automatic initialization")
 	verbose := flag.Bool("verbose", false, "enable verbose logging")
 	noSigaltstack := flag.Bool("no-sigaltstack", false, "disable automatic sigaltstack initialization")
-	dirMaps := flag.String("dir-maps", "", "comma-separated list of directory mappings (e.g. /=/)")
 
 	flag.Parse()
 
@@ -294,13 +289,11 @@ func main() {
 
 	input := args[0]
 
-	dynamic := false
+	// The runtime loads static-pie executables only: it has no dynamic loader
+	// and no file system access for the sandbox to load a shared library
+	// with.
 	if strings.HasSuffix(input, ".so") {
-		dynamic = true
-
-		if *embedF {
-			fatal("-embed is not supported with shared libraries")
-		}
+		fatal("shared libraries are not supported: link the library into a static-pie LFI executable (see README.md)")
 	}
 
 	var wantedSyms []string
@@ -322,7 +315,7 @@ func main() {
 		wantedSyms = append(wantedSyms, strings.Split(*symbols, ",")...)
 	}
 
-	if (*genTrampolines != "" || *genInit != "") && !*symbolsAll && *symbols == "" && *symbolsFile == "" && *symPrefix == "" && !dynamic {
+	if (*genTrampolines != "" || *genInit != "") && !*symbolsAll && *symbols == "" && *symbolsFile == "" && *symPrefix == "" {
 		fatal("error: must provide a way to match symbols (-symbols, -symbols-file, -symbols-prefix, -symbols-all)")
 	}
 
@@ -361,24 +354,17 @@ func main() {
 	}
 	f.Close()
 
-	var dirMapsSlice []string
-	if *dirMaps != "" {
-		dirMapsSlice = strings.Split(*dirMaps, ",")
-	}
-
 	opts := Options{
 		Input:         input,
 		Syms:          syms,
 		Lib:           *lib,
 		LibPrefix:     *libPrefix,
 		LibPath:       *libPath,
-		Dynamic:       dynamic,
 		Embed:         *embedF,
 		NoVerify:      *noVerify,
 		Constructor:   !*noConstructor,
 		Verbose:       *verbose,
 		NoSigaltstack: *noSigaltstack,
-		DirMaps:       dirMapsSlice,
 		StackArgs:     stackArgs,
 	}
 

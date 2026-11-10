@@ -9,5 +9,6 @@ examples/lfi-runtime
 *.a
 
 subprojects/lfi-runtime
+subprojects/minialloc
 subprojects/lfi-verifier*
 subprojects/argtable3

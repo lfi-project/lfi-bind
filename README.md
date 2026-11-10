@@ -30,6 +30,14 @@ The process for creating a sandboxed library is the following:
 4. Compile `lib_init.c` and `lib_trampolines.S` into your host application,
    allowing you to use the sandboxed library.
 
+The library must be a static PIE: shared libraries (`.so`) are not supported.
+By default, the runtime gives the sandbox only the system calls it needs to
+start and to grow its heap with `brk` (no `mmap`, files, or threads). A library
+that allocates memory (including through `lib_malloc`) should therefore link a
+`brk`-based allocator such as [minialloc](https://github.com/zyedidia/minialloc)
+in place of the libc allocator, as the `memory` example does, unless the
+runtime is built with `-Dlinux_full=true`.
+
 See the `examples` directory for real examples that you can try out.
 
 ```

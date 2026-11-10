@@ -1,6 +1,6 @@
 libmem = custom_target('libmem.lfi',
   output: 'libmem.lfi',
-  input: files('lib.c'),
+  input: [files('lib.c'), minialloc_srcs],
   command: [lficc, '-static-pie', '@INPUT@', '-o', '@OUTPUT@', '-lboxrt', '-Wl,--export-dynamic', '-O2'])
 
 mem_gen = custom_target('libmem-wrapper',
