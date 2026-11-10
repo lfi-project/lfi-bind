@@ -287,6 +287,11 @@ lfi_init(void)
 bool
 {{.lib}}_init(void)
 {
+    // Already initialized (e.g. by the constructor). {{.lib}}_box stays set
+    // only if initialization succeeds.
+    if ({{.lib}}_box)
+        return true;
+
     if (!lfi_init())
         return false;
 
