@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <setjmp.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Initialize the sandboxed library. Returns true on success, false on failure.
 // Does nothing (and returns true) if the library is already initialized.
 bool
@@ -228,3 +232,7 @@ extern struct LFIBox *{{.lib}}_box;
             LFI_CALL_1,                        \
             LFI_CALL_0)(fn __VA_OPT__(,) __VA_ARGS__); \
     })
+
+#ifdef __cplusplus
+}
+#endif
