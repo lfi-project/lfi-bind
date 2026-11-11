@@ -74,7 +74,7 @@ void *
 {{.lib}}_stack_pop(size_t size);
 
 // LFI context and sandbox variables for advanced usage with liblfi.
-extern _Thread_local struct LFIContext *{{.lib}}_ctx;
+extern __thread struct LFIContext *{{.lib}}_ctx;
 
 extern struct LFIBox *{{.lib}}_box;
 
